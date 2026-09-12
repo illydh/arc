@@ -13,6 +13,7 @@ calib/     pixel -> arena-floor homography, undistortion
 detect/    background subtraction + blob filtering
 track/     Kalman filter / detection association
 identify/  Nemesis-vs-opponent identity (undecided, see context.md)
+viz/       top-down arena view of tracked positions
 transport/ UDP/JSON output to the driver system
 scripts/   dev harnesses for running the pipeline against data/ clips
 ```

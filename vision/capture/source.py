@@ -36,6 +36,9 @@ class VideoFileSource(FrameSource):
         ts = self.cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
         return True, frame, ts
 
+    def seek(self, frame_index: int) -> None:
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+
     def close(self) -> None:
         self.cap.release()
 
