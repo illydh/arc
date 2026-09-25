@@ -1,1 +1,23 @@
-nerfstudio
+# Splatting stack. Deliberately separate from vision/requirements.txt: this
+# pulls the whole PyTorch tree. See mds/context.md.
+#
+# Currently installed into the repo-root .venv (Python 3.12.11), not a
+# dedicated one. Note that opencv-python-headless collides with the
+# opencv-python that vision/ needs for cv2.imshow -- both unpack into the same
+# cv2/ directory. Do not install vision/ into this venv without resolving that.
+
+nerfstudio==1.1.5
+numpy==1.26.4
+opencv-python-headless==4.10.0.84   # blur scoring only, no GUI needed
+
+# Phase 2 (GPU training) only -- gsplat disables itself without CUDA, so
+# neither of these does anything useful on this machine.
+torch==2.14.0
+gsplat==1.4.0
+
+# Not pip-installable, must be on PATH:
+#   colmap 4.2.0  (Homebrew, built without GPU support)
+#   ffmpeg 9.0.1  (Homebrew)
+#
+# Known gap: ns-export needs pymeshlab, which is not installed. Blocks Phase 3
+# .ply export, not Phase 1.
