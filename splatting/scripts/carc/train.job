@@ -26,9 +26,9 @@ ITERS="${ITERS:-30000}"
 
 # Must match setup_env.sh, or gsplat's runtime CUDA compile fails.
 module purge
-module load gcc/13.3.0 cuda/12.4.1 python/3.11.9
+module load gcc/12.3.0 cuda/12.4.1 python/3.11.9
 # shellcheck disable=SC1091
-source "$CARC_ENV/bin/activate"
+source "/home1/illyhoan/arc/splatting/.venv/bin/activate"
 
 nvidia-smi
 python -c "import torch; assert torch.cuda.is_available(), 'no GPU visible'; print('gpu:', torch.cuda.get_device_name(0))"
