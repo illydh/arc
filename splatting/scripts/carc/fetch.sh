@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Pull a finished training run back for local viewing.
+# OPTIONAL. Not part of submitting a job -- only needed to copy a finished
+# run's outputs down to a laptop for local viewing.
 set -euo pipefail
 
 : "${CARC_USER:?set CARC_USER (see mds/carc.md)}"

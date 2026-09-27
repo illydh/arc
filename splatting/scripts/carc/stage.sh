@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
+# OPTIONAL. Not part of submitting a job -- train.job and setup_env.sh are
+# self-contained and read the dataset from CARC_DATA directly, however it got
+# there. Use this only if you need to push a run from a laptop instead of a
+# persistent CARC checkout.
+#
 # Push a processed run AND the carc scripts to CARC.
 #
-# The scripts have to go up too: setup_env.sh and train.sbatch run on the
+# The scripts have to go up too: setup_env.sh and train.job run on the
 # cluster, and sbatch does not exist locally. They live under CARC_CODE in
 # /home1 rather than with the data in /scratch1, which is purged periodically.
 #
@@ -36,6 +41,6 @@ cat <<EOF
 staged. next, on the cluster:
   ssh $CARC_USER@$CARC_HOST
   cd $CARC_CODE/scripts/carc
-  bash setup_env.sh                                     # once only
-  sbatch --export=ALL,RUN=$RUN,ITERS=500 train.sbatch   # smoke test
+  bash setup_env.sh                                 # once only
+  sbatch --export=ALL,RUN=$RUN,ITERS=500 train.job   # smoke test
 EOF

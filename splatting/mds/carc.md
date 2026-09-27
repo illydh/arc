@@ -1,38 +1,48 @@
 # Phase 2 runbook -- training on USC CARC
 
-Scripts live in `scripts/carc/`. Everything is driven by environment
-variables so no username or account name is committed.
+Scripts live in `scripts/carc/`.
 
-Nothing in here has been executed -- there is no CARC access from the machine
-this was written on. Items marked **CONFIRM** are cluster facts that have to
-be checked on the login node before the first run; they are the likely
-failure points, not afterthoughts.
+Phase 2 has run on CARC (jobs 12341373, 12341876, 12343109, 12371036 while
+this was stabilizing). The actual practice has been a persistent checkout at
+`/home1/illyhoan/arc` on CARC, submitting `sbatch` directly from a CARC
+terminal -- not the laptop-upload path this doc originally assumed. `train.job`
+and `setup_env.sh` are now self-contained accordingly: `CARC_ENV`, `CARC_DATA`,
+`CARC_OUT` and the `--output` log path are hardcoded in them, all under
+`/home1/illyhoan/arc/`, and nothing is read from the submitting environment
+except `RUN` (and optionally `ITERS`).
 
-## Config block
+## Submitting a job (CARC terminal)
 
-Export these in your shell (or drop them in `~/.splatting_carc` and source
-it). `CARC_HOST` defaults to `discovery.usc.edu` if unset.
+This is the whole procedure. Both scripts assume the dataset already exists
+at `/home1/illyhoan/arc/splatting/data/processed/<RUN>/` -- how it gets there
+is outside this doc; see "Optional: syncing from a laptop" below if it isn't
+there yet.
 
 ```sh
-export CARC_USER=<your-carc-username>
-export CARC_HOST=discovery.usc.edu
-export CARC_DATA=/scratch1/$CARC_USER/splatting/data
-export CARC_OUT=/scratch1/$CARC_USER/splatting/outputs
-export CARC_ENV=/home1/$CARC_USER/envs/splatting
-export CARC_CODE=/home1/$CARC_USER/splatting
+cd /home1/illyhoan/arc/splatting/scripts/carc
+
+bash setup_env.sh   # step 1, once only (~10 min): builds the venv, creates
+                     # the log directory. Skip on every later submit.
+
+# step 2, every submit:
+sbatch --export=ALL,RUN=interior400,ITERS=500 train.job   # smoke test, ~2 min
+squeue -u $USER
+tail -f /home1/illyhoan/arc/logs/splatfacto-<jobid>.out
+
+sbatch --export=ALL,RUN=interior400 train.job              # full run, once
+                                                             # the smoke test
+                                                             # exits 0
 ```
 
-`CARC_ENV` and `CARC_CODE` go in `/home1` (persistent); data and outputs go in
-`/scratch1` (fast, purged periodically). **CONFIRM** both paths exist for your
-account and that scratch has ~1 GB free -- `myquota`.
-
-Set the same block again in your shell **on the login node** -- `train.sbatch`
-reads `CARC_ENV`, `CARC_DATA` and `CARC_OUT` from the submitting environment
-via `--export=ALL`, and will refuse to start without them.
+That's two scripts total, one of them (`setup_env.sh`) run once ever, not
+once per job. `stage.sh`/`fetch.sh` are not part of this and don't need to run.
 
 ## Preflight
 
-Run on the login node and fill the results into `train.sbatch`:
+Resolved for this account: partition `gpu`, `--gpus-per-task=a100:1`, modules
+`gcc/12.3.0 cuda/12.4.1 python/3.11.9`. If the cluster config changes, redo
+this and update both scripts' `module load` lines -- they must match exactly,
+or gsplat's CUDA kernel compile breaks mid-job:
 
 | What | Command | Goes into |
 |---|---|---|
@@ -41,44 +51,32 @@ Run on the login node and fill the results into `train.sbatch`:
 | GPU types available | `sinfo -o "%P %G %D"` | `--gres=gpu:<type>:1` |
 | Module names | `module avail cuda`, `module avail python`, `module avail gcc` | both scripts' `module load` lines |
 
-The `module load` line appears in **both** `setup_env.sh` and `train.sbatch`
-and the two must match exactly. gsplat compiles its CUDA kernels at first use
-inside the job, against whatever toolkit is loaded then -- a version skew
-between install time and run time surfaces as a compile error mid-job, not at
-install.
+## Optional: syncing from a laptop
 
-## Sequence
-
-Note which machine each step runs on. `sbatch` exists only on the cluster.
+Not part of submitting a job -- skip this section entirely if the CARC
+checkout already has the dataset, which is how this has actually been run.
+Use `stage.sh`/`fetch.sh` only if working from a laptop without a persistent
+CARC checkout, to move a dataset up or a finished run down over `rsync`/`ssh`.
+They still read their paths from the environment; set these to match the
+hardcoded paths above, or staging and training will look in different places:
 
 ```sh
-### ON THE LAPTOP -- uploads the dataset (~198 MB) and the scripts
-./splatting/scripts/carc/stage.sh interior400
+export CARC_USER=illyhoan
+export CARC_HOST=discovery.usc.edu
+export CARC_CODE=/home1/illyhoan/arc/splatting
+export CARC_DATA=/home1/illyhoan/arc/splatting/data/processed
+export CARC_OUT=/home1/illyhoan/arc/splatting/out
 
-### ON THE LOGIN NODE
-ssh $CARC_USER@$CARC_HOST
-# re-export the config block here, then:
-cd $CARC_CODE/scripts/carc
-bash setup_env.sh                                    # once only, ~10 min
-
-# smoke test: ~2 min, proves GPU + env + data path before a real run
-sbatch --export=ALL,RUN=interior400,ITERS=500 train.sbatch
-squeue -u $USER
-tail -f splatfacto-<jobid>.out
-
-# the real run, once the smoke test exits 0
-sbatch --export=ALL,RUN=interior400 train.sbatch
-
-### ON THE LAPTOP -- once the job finishes
-./splatting/scripts/carc/fetch.sh interior400
+./splatting/scripts/carc/stage.sh interior400   # laptop -> CARC, before a run
+./splatting/scripts/carc/fetch.sh interior400   # CARC -> laptop, after a run
 ```
 
 ## What actually gets uploaded
 
-`stage.sh` sends two things.
+Optional path only (see above) -- `stage.sh` sends two things.
 
 **1. The scripts** -> `$CARC_CODE/scripts/carc/` (~4 KB): `setup_env.sh`,
-`train.sbatch`, `stage.sh`, `fetch.sh`. Only the first two are used there.
+`train.job`, `stage.sh`, `fetch.sh`. Only the first two are used there.
 
 **2. The dataset** -> `$CARC_DATA/interior400/` (198 MB of the 654 MB on disk):
 
@@ -112,7 +110,7 @@ train at full resolution.
 
 **`ns-viewer` will not run on the Apple Silicon machine.** It renders through
 gsplat, which disables itself without CUDA. The same applies to `ns-export`,
-which loads the model onto a CUDA device. This is why `train.sbatch` runs the
+which loads the model onto a CUDA device. This is why `train.job` runs the
 export **on CARC**, immediately after training.
 
 So the local artifact is `export/splat.ply`, viewed in any WebGL splat viewer
@@ -128,8 +126,8 @@ first look.
 
 | Symptom | Cause |
 |---|---|
-| `no GPU visible` from the assert in `train.sbatch` | `--gres` wrong or partition has no GPU |
-| gsplat CUDA compile error mid-job | `module load` differs between `setup_env.sh` and `train.sbatch` |
+| `no GPU visible` from the assert in `train.job` | `--gres` wrong or partition has no GPU |
+| gsplat CUDA compile error mid-job | `module load` differs between `setup_env.sh` and `train.job` |
 | `ModuleNotFoundError: pymeshlab` at the export step | `setup_env.sh` not re-run after it was added |
 | Job pends a long time | a100 contention; try a different `--gres` type from the preflight table |
-| `Could not find any image files` | `stage.sh` was run before the dataset finished processing, or `CARC_DATA` mismatch |
+| `Could not find any image files` | dataset not at `/home1/illyhoan/arc/splatting/data/processed/<RUN>/`, or (optional path) `stage.sh` was run before the dataset finished processing |
