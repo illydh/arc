@@ -19,9 +19,8 @@
 set -euo pipefail
 
 : "${RUN:?export RUN=<run-name>}"
-: "${CARC_ENV:?export CARC_ENV}"
-: "${CARC_DATA:?export CARC_DATA}"
-: "${CARC_OUT:?export CARC_OUT}"
+CARC_DATA="/home1/illyhoan/arc/splatting/data/processed"
+CARC_OUT="/home1/illyhoan/arc/splatting/out"
 ITERS="${ITERS:-30000}"
 
 # Must match setup_env.sh, or gsplat's runtime CUDA compile fails.
