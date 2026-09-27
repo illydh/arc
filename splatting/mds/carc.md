@@ -14,9 +14,7 @@ except `RUN` (and optionally `ITERS`).
 ## Submitting a job (CARC terminal)
 
 This is the whole procedure. Both scripts assume the dataset already exists
-at `/home1/illyhoan/arc/splatting/data/processed/<RUN>/` -- how it gets there
-is outside this doc; see "Optional: syncing from a laptop" below if it isn't
-there yet.
+at `/home1/illyhoan/arc/splatting/data/processed/interior400/`. That dataset was produced locally by Phase 1 and copied to CARC by hand -- see "Optional: syncing from a laptop" below only if a future run's data isn't already there.
 
 ```sh
 cd /home1/illyhoan/arc/splatting/scripts/carc
