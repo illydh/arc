@@ -52,7 +52,8 @@ ns-train splatfacto \
 # Export the .ply here rather than locally: ns-viewer and ns-export both load
 # the model onto a CUDA device, so neither runs on the Apple Silicon box. A
 # .ply opens in any WebGL splat viewer with no CUDA at all.
-CONFIG="$(ls -t "$CARC_OUT/$RUN"/*/config.yml | head -1)"
+# nerfstudio writes to <output-dir>/<experiment>/<method>/<timestamp>/.
+CONFIG="$(ls -t "$CARC_OUT/$RUN"/splatfacto/*/config.yml | head -1)"
 echo "exporting from $CONFIG"
 ns-export gaussian-splat --load-config "$CONFIG" --output-dir "$CARC_OUT/$RUN/export"
 

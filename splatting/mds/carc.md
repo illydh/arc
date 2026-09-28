@@ -101,8 +101,9 @@ train at full resolution.
   since it targets a max dimension under 1600 px and these are 2560 wide).
 - 30k iterations of splatfacto on one A100: roughly 20-40 minutes. The
   `--time=02:00:00` request is deliberately loose.
-- Output: `$CARC_OUT/interior400/<timestamp>/` with `config.yml`, `nerfstudio_models/`,
-  and `export/splat.ply`.
+- Output: `$CARC_OUT/interior400/splatfacto/<timestamp>/` with `config.yml`,
+  `nerfstudio_models/`, `dataparser_transforms.json` and the tfevents file;
+  the export lands separately at `$CARC_OUT/interior400/export/splat.ply`.
 
 ## Viewing -- read before planning Phase 3
 
