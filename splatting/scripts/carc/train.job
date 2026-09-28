@@ -30,6 +30,9 @@ ITERS="${ITERS:-30000}"
 # Must match setup_env.sh, or gsplat's runtime CUDA compile fails.
 module purge
 module load gcc/12.3.0 cuda/12.4.1 python/3.11.9
+# Put gcc 12's libstdc++ ahead of the system /lib64 one. Without this,
+# ns-export's import of fpsample fails: GLIBCXX_3.4.29 not found.
+export LD_LIBRARY_PATH="$(dirname "$(g++ -print-file-name=libstdc++.so.6)"):${LD_LIBRARY_PATH:-}"
 # shellcheck disable=SC1091
 source "/home1/illyhoan/arc/splatting/.venv/bin/activate"
 

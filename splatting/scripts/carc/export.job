@@ -1,0 +1,39 @@
+#!/bin/bash
+
+#SBATCH --job-name=splat-export
+#SBATCH --partition=gpu
+#SBATCH --gpus-per-task=a100:1
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
+#SBATCH --time=02:00:00
+#SBATCH --output=/home1/illyhoan/arc/logs/%x-%j.out
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=illyhoan@usc.edu
+
+# Export-only: writes splat.ply from an already-trained run, without
+# retraining. Use when train.job finished training but its export step failed.
+#   sbatch --export=ALL,RUN=interior400 export.job
+# Exports the most recent training run under out/<RUN>/splatfacto/.
+
+set -euo pipefail
+
+: "${RUN:?export RUN=<run-name>}"
+CARC_OUT="/home1/illyhoan/arc/splatting/out"
+
+# Must match setup_env.sh and train.job.
+module purge
+module load gcc/12.3.0 cuda/12.4.1 python/3.11.9
+# Put gcc 12's libstdc++ ahead of the system /lib64 one. Without this,
+# ns-export's import of fpsample fails: GLIBCXX_3.4.29 not found.
+export LD_LIBRARY_PATH="$(dirname "$(g++ -print-file-name=libstdc++.so.6)"):${LD_LIBRARY_PATH:-}"
+# shellcheck disable=SC1091
+source "/home1/illyhoan/arc/splatting/.venv/bin/activate"
+
+# nerfstudio writes to <output-dir>/<experiment>/<method>/<timestamp>/.
+CONFIG="$(ls -t "$CARC_OUT/$RUN"/splatfacto/*/config.yml | head -1)"
+echo "exporting from $CONFIG"
+ns-export gaussian-splat --load-config "$CONFIG" --output-dir "$CARC_OUT/$RUN/export"
+
+echo "done; splat.ply under $CARC_OUT/$RUN/export"
