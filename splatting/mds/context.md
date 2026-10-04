@@ -115,9 +115,9 @@ only its data-processing entrypoint is unusable. Do not "fix" this by patching
 - **Faiss vocab tree for loop closure.** Would enable `--vocab-tree`, loop
   detection, and drift correction on a walk that revisits corners. Not sourced
   yet; `process_video.py --vocab-tree PATH` is wired and waiting for one.
-- ~~GPU target for training~~ **resolved: USC CARC (SLURM).** Not built yet --
-  Phase 2 is the next round of work. Cloud rental (RunPod/Lambda) remains the
-  fallback if queue latency or environment setup proves painful.
+- ~~GPU target for training~~ **resolved: USC CARC (SLURM).** Used for run 1
+  (training job 12394520, export job 12399735). Cloud rental (RunPod/Lambda)
+  remains the fallback if queue latency or environment setup proves painful.
 - ~~Python environment location~~ **resolved: repo-root `.venv`.** The
   question was moot: nerfstudio 1.1.5 and its PyTorch tree are already
   installed there (the venv is 2.0 GB, not the 168 MB previously recorded).
@@ -136,12 +136,12 @@ only its data-processing entrypoint is unusable. Do not "fix" this by patching
   arena, it fails here, before any GPU time is bought or queued. **Gate
   passed as MARGINAL** on the interior segment -- a trainable dataset exists
   at `data/processed/interior400`. See Phase 1 findings.
-- **Phase 2 -- training, GPU only.** `ns-train splatfacto` on USC CARC via
-  SLURM. Requires a CUDA host; cannot run locally (verified: `gsplat: No CUDA
-  toolkit found. gsplat will be disabled.`). **Scaffolding written, not yet
-  executed** -- `scripts/carc/` + the runbook in `carc.md`. No CARC access
-  exists from this machine, so every cluster-specific value in those scripts
-  is a marked placeholder.
+- **Phase 2 -- training, GPU only. DONE for run 1.** `ns-train splatfacto` on
+  USC CARC via SLURM. Requires a CUDA host; cannot run locally (verified:
+  `gsplat: No CUDA toolkit found. gsplat will be disabled.`). Scripts in
+  `scripts/carc/`, runbook in `carc.md`. Run 1: job 12394520, 30,000
+  iterations, 656 s of training, 1.03M Gaussians; exported by job 12399735
+  after the `LD_LIBRARY_PATH` fix.
 - **Phase 3 -- viewing.** Corrected: this is **not** local the way it was
   originally planned. `ns-viewer` renders through gsplat and `ns-export` loads
   the model onto a CUDA device, so **neither runs on the Apple Silicon box**.
@@ -150,6 +150,13 @@ only its data-processing entrypoint is unusable. Do not "fix" this by patching
   viewer with no CUDA and no install. `pymeshlab` is consequently needed in
   the **CARC** environment (`ns-export` imports it at module load), not
   locally -- it is in `scripts/carc/setup_env.sh`.
+- **Phase 3 -- evaluation.** `scripts/splat_report.py` grades a `splat.ply`
+  locally (CPU) and writes `report.json` plus pictures to `report/` beside the
+  .ply. Exact held-out scores need the model rendered, which is CUDA-only, so
+  `scripts/carc/eval.job` runs `ns-eval` on CARC and the report reads its
+  output as an optional fourth argument. Without it, held-out scores come from
+  the training log's last full eval (step 29,000 for run 1). See Phase 3
+  findings.
 
 ## Phase 1 findings
 Measured, not predicted. All runs CPU-only, `sequential` matcher, no loop
@@ -196,6 +203,55 @@ Conclusions so far:
   registered frames sitting in `sparse/0`, the model that
   `colmap_to_json` actually consumes -- with NO-GO below 50%. Raw sub-model
   count is still reported.
+
+## Phase 3 findings (run 1)
+Measured 2026-10-01 by `scripts/splat_report.py` on `out/splat.ply` (export of
+run `2026-09-27_171857`). Held-out scores are from the training log; the
+`eval.job` re-score from the final checkpoint has not run yet. Lengths are
+model units: nerfstudio scales the scene so the largest camera coordinate
+is 1.0.
+
+| Check | Result |
+|---|---|
+| Integrity | 1,006,172 Gaussians, file size matches the header, no NaN/Inf |
+| Held-out (28 views) | PSNR 21.96 dB, SSIM 0.799, LPIPS 0.350; within 0.25 dB of its best from step 11,000 |
+| Training views | PSNR 29.0 dB averaged over the last 1,000 steps (gap 7.1 dB) |
+| Per view | 13.1 to 29.9 dB. Worst: `frame_00373` 13.1, `00383` 14.8, `00363` 14.9, `00140` 15.9, `00427` 16.5 |
+| Floaters | 17.9% by count (15.1% outside the mapped region, 13.0% isolated, 0.5% in walked air); 20.2% by visual weight |
+| Extent | Full box 37.8 x 39.1 x 26.3; 1-99% box 9.2 x 10.8 x 4.8; camera path box 1.75 x 1.83 x 0.40 |
+| Floor | Present: covers 90.1% of the camera-path footprint, 4.2 degrees off level |
+| Mix | 51.6% solid, 12.5% faint, 2.4% oversized, 5.4% needle-shaped |
+| **Verdict** | **MARGINAL** (provisional, pending `eval.job`) |
+
+Observations:
+
+- **The arena itself reconstructs.** The top-down render shows the square
+  wall outline with the camera path inside it, and views across the floor
+  score 28-30 dB.
+- **The weak views are the predicted ones.** `00363`, `00373`, `00383` and
+  `00427` look out through the polycarbonate at the pit, seating and roof.
+  The renders are smeared with large dark blobs. This is the
+  specular/transparent failure mode that also stopped frames 253-355 from
+  registering in Phase 1. `00140` is a blurred floor shot with the
+  operator's shadow in frame, which breaks the static-scene assumption.
+- **The model is not level.** The fitted floor is 4.2 degrees off the model's
+  z axis, so `orientation_method: up` (the average camera up vector) is off
+  by that much. This matters for simulation, not for viewing.
+- **There is a hole in the floor near the arena centre** (about 0.3 x 0.4
+  units with no opaque splats at any height). Cause not yet checked.
+- **Haze extends to about 19 units** around a scene whose camera path spans
+  about 1.8. Most of it sits outside the mapped region and is cheap to crop
+  in a viewer. The splats in the walked air are few (0.5% of the count) but
+  carry most of the floater visual weight, because they sit right in front of
+  the lens.
+- **The training-view PSNR of 34.7 dB recorded earlier was one image** at
+  step 29,990. Averaged over the last 1,000 steps it is 29.0 dB.
+- **Visual weight definition.** The plan defined floater weight as opacity x
+  world-space area. Before the first run this was changed to opacity x solid
+  angle from the nearest training camera, because world area lets a handful
+  of huge distant splats dominate: the 100 largest splats hold 45% of all
+  world-area weight. Under the world-area definition the floater share is
+  99.3%, which would have tripped NO-GO on that one number.
 
 ## Risks to reconstruction quality
 - **Arena surfaces are adversarial for SfM.** Painted steel floor is
@@ -255,18 +311,23 @@ underlying trap is still on disk.
 - `data/` is git-ignored (`.gitignore` line 221), so processed runs stay out of
   version control. `mds/` is tracked, matching `vision/mds/`.
 - `data/processed/interior400/` holds the one usable dataset: 428 extracted
-  frames, 280 posed, ~300 MB including the 2x/4x/8x downscales. It is what
-  Phase 2 should be pointed at.
-- Nothing trained yet. No GPU work started.
+  frames, 280 posed, ~300 MB including the 2x/4x/8x downscales. Run 1 was
+  trained on it.
+- `out/` (git-ignored) holds run 1 as copied down from CARC by hand:
+  `out/splat.ply`, `out/splatfacto/2026-09-27_171857/` (config, checkpoint,
+  tfevents) and `out/report/` from `splat_report.py`. The local layout is
+  flatter than CARC's `out/<RUN>/...`.
+- Run 1 evaluated: MARGINAL, provisional (see Phase 3 findings).
 
 ### Next steps, in order
-1. **Run Phase 2.** Work through `carc.md`: preflight on the login node to
-   fill in the account/partition/module placeholders, `setup_env.sh`,
-   `stage.sh interior400`, a 500-iteration smoke job, then the real run.
-2. **Look at the .ply before improving anything.** The Phase 1 gate was
-   MARGINAL, but whether 65% registration and the through-the-glass gap
-   actually matter is only answerable by looking at a render. Do not spend
-   more CPU on SfM speculatively.
-3. Only if the splat looks poor, revisit the front half: exclude the
-   through-the-glass stretch (roughly `--start 110 --end 228`), or raise
-   density on the segments that did register.
+1. **Re-score run 1 on CARC.** `sbatch --export=ALL,RUN=interior400
+   eval.job`, copy `out/interior400/eval/` down to `out/eval/`, and rerun
+   `splat_report.py` with it as the fourth argument.
+2. **Look at the .ply in a browser viewer** (see `carc.md`, Viewing) to check
+   the report's pictures against the real thing.
+3. **Then choose run 2's changes.** The findings point at the through-the-glass
+   views and the floaters, not the arena interior. Front-half options, which
+   need SfM redone: exclude or mask the through-the-glass stretch (roughly
+   `--start 110 --end 228`), or raise density on the segments that did
+   register. Train-only options: camera pose refinement, per-image
+   appearance correction, a needle penalty.

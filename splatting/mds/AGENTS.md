@@ -15,11 +15,12 @@ Neither requirements manifest should leak into the other.
 ## Layout
 ```
 data/      source video, extracted frames, COLMAP output -- all git-ignored
+out/       trained runs and splat.ply copied down from CARC, report/ -- git-ignored
 mds/       context.md, carc.md + this file (tracked, mirroring vision/mds/)
 scripts/   dev harnesses for the local CPU half
 scripts/carc/  staging, SLURM job and retrieval for the remote GPU half
 ```
-No packages yet: the local half of the pipeline is two scripts and there is
+No packages yet: the local half of the pipeline is three scripts and there is
 only one pipeline. Add modules when there is something real to share.
 
 ## Conventions
@@ -58,11 +59,17 @@ Append new ones as they are introduced.
 ```
 .venv/bin/python splatting/scripts/process_video.py [--frames N] [--matcher M]
 .venv/bin/python splatting/scripts/sfm_report.py splatting/data/processed/<run>
+.venv/bin/python splatting/scripts/splat_report.py <splat.ply> <train-run-dir> <processed-run-dir> [<eval-dir>]
 ```
 
 `process_video.py` writes a nerfstudio-format dataset to
 `data/processed/<name>/`; `sfm_report.py` grades the reconstruction and writes
-`report.json` beside it. Both are CPU-only.
+`report.json` beside it. `splat_report.py` grades a trained splat (integrity,
+floaters, floor, held-out scores) and writes `report.json` plus three PNGs to
+`report/` beside the .ply. Without `<eval-dir>` it takes held-out scores from
+the training run's tfevents file; with it, from `eval.job`'s `metrics.json`
+and renders. All three are CPU-only, and the thresholds sit at the top of
+each script.
 
 Training is remote and so is the `.ply` export -- `ns-train`, `ns-viewer` and
 `ns-export` all put the model on a CUDA device, so none of them run on this

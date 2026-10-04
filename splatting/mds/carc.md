@@ -35,6 +35,22 @@ sbatch --export=ALL,RUN=interior400 train.job              # full run, once
 That's two scripts total, one of them (`setup_env.sh`) run once ever, not
 once per job. `stage.sh`/`fetch.sh` are not part of this and don't need to run.
 
+## After training: export-only and eval-only jobs
+
+Both reuse the newest run under `out/<RUN>/splatfacto/` and never retrain.
+
+```sh
+sbatch --export=ALL,RUN=interior400 export.job   # rewrite splat.ply only
+sbatch --export=ALL,RUN=interior400 eval.job     # re-score held-out views
+```
+
+`eval.job` runs `ns-eval` on the final checkpoint and writes
+`out/<RUN>/eval/metrics.json` (mean and spread of PSNR / SSIM / LPIPS over
+the held-out views) and `out/<RUN>/eval/renders/eval_img_*.png` (real photo
+left, render right). Copy that `eval/` folder down to `splatting/out/eval/`
+and pass it as `splat_report.py`'s fourth argument. It runs on CARC for the
+same reason the export does: the model only loads onto a CUDA device.
+
 ## Preflight
 
 Resolved for this account: partition `gpu`, `--gpus-per-task=a100:1`, modules
