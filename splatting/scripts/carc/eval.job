@@ -1,0 +1,42 @@
+#!/bin/bash
+
+#SBATCH --job-name=splat-eval
+#SBATCH --partition=gpu
+#SBATCH --gpus-per-task=a100:1
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
+#SBATCH --time=00:30:00
+#SBATCH --output=/home1/illyhoan/arc/logs/%x-%j.out
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=illyhoan@usc.edu
+
+# Eval-only: re-renders the held-out views from an already-trained run and
+# scores them, without retraining. Runs here for the same reason the export
+# does: the model only loads onto a CUDA device.
+#   sbatch --export=ALL,RUN=interior400 eval.job
+# Evaluates the most recent training run under out/<RUN>/splatfacto/.
+# Writes out/<RUN>/eval/metrics.json and out/<RUN>/eval/renders/*.png, which
+# scripts/splat_report.py reads as its optional fourth argument.
+
+set -euo pipefail
+
+: "${RUN:?export RUN=<run-name>}"
+CARC_OUT="/home1/illyhoan/arc/splatting/out"
+
+# Must match setup_env.sh and train.job.
+module purge
+module load gcc/12.3.0 cuda/12.4.1 python/3.11.9
+export LD_LIBRARY_PATH="$(dirname "$(g++ -print-file-name=libstdc++.so.6)"):${LD_LIBRARY_PATH:-}"
+# shellcheck disable=SC1091
+source "/home1/illyhoan/arc/splatting/.venv/bin/activate"
+
+# nerfstudio writes to <output-dir>/<experiment>/<method>/<timestamp>/.
+CONFIG="$(ls -t "$CARC_OUT/$RUN"/splatfacto/*/config.yml | head -1)"
+echo "evaluating $CONFIG"
+ns-eval --load-config "$CONFIG" \
+  --output-path "$CARC_OUT/$RUN/eval/metrics.json" \
+  --render-output-path "$CARC_OUT/$RUN/eval/renders"
+
+echo "done; metrics.json and renders under $CARC_OUT/$RUN/eval"
