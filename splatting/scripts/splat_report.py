@@ -82,6 +82,23 @@ def model_frame(run, dataset):
     return names, cams, sparse
 
 
+def find_floaters(xyz, opacity, cams, sparse):
+    lo, hi = np.percentile(sparse, [1, 99], axis=0)
+    mid, half = (lo + hi) / 2, (hi - lo) / 2 * REGION_MARGIN
+    cam_dist = cKDTree(cams).query(xyz, workers=-1)[0]
+    knn = cKDTree(xyz).query(xyz, k=ISOLATED_K + 1, workers=-1)[0][:, 1:].mean(axis=1)
+    isolated_at = ISOLATED_FACTOR * float(np.median(knn))
+    return {
+        "box": (mid - half, mid + half),
+        "cam_dist": cam_dist,
+        "knn": knn,
+        "isolated_at": isolated_at,
+        "outside": (np.abs(xyz - mid) > half).any(axis=1),
+        "free_space": (cam_dist < FREE_SPACE_R) & (opacity > 0.5),
+        "isolated": knn > isolated_at,
+    }
+
+
 def eval_names(run, names):
     fraction = float(re.search(r"train_split_fraction: ([\d.]+)", (run / "config.yml").read_text()).group(1))
     return [names[i] for i in get_train_eval_split_fraction(names, fraction)[1]]
@@ -293,15 +310,10 @@ def main(ply, run, dataset, eval_dir=None):
     print(f"  1-99% box:   {robust[0]:.2f} x {robust[1]:.2f} x {robust[2]:.2f}  (footprint aspect {aspect:.2f})")
     print(f"  vs path box: {robust[0] / cam_box[0]:.2f}x by {robust[1] / cam_box[1]:.2f}x")
 
-    sp_lo, sp_hi = np.percentile(sparse, [1, 99], axis=0)
-    mid, half = (sp_lo + sp_hi) / 2, (sp_hi - sp_lo) / 2 * REGION_MARGIN
-    box_lo, box_hi = mid - half, mid + half
-    outside = (np.abs(xyz - mid) > half).any(axis=1)
-    cam_dist = cKDTree(cams).query(xyz, workers=-1)[0]
-    free = (cam_dist < FREE_SPACE_R) & (opacity > 0.5)
-    knn = cKDTree(xyz).query(xyz, k=ISOLATED_K + 1, workers=-1)[0][:, 1:].mean(axis=1)
-    isolated_at = ISOLATED_FACTOR * float(np.median(knn))
-    isolated = knn > isolated_at
+    f = find_floaters(xyz, opacity, cams, sparse)
+    box_lo, box_hi = f["box"]
+    cam_dist, knn, isolated_at = f["cam_dist"], f["knn"], f["isolated_at"]
+    outside, free, isolated = f["outside"], f["free_space"], f["isolated"]
     floater = outside | free | isolated
     # Visual weight: opacity x the solid angle the footprint subtends from the
     # nearest training camera. World-space area alone lets a handful of huge
