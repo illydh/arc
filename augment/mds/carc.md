@@ -5,11 +5,16 @@ checkout at `/home1/illyhoan/arc` on CARC, jobs submitted from a CARC
 terminal, paths hardcoded in the scripts, and only `RUN` (plus optional `N`,
 `SHEETS`, `SEEDS`) given on the `sbatch` line.
 
-**Not yet run on CARC.** Everything below was written and checked on the
-Mac: the scripts pass a syntax check, the upload was rehearsed into a local
+**No job has run on CARC yet.** Everything below was written and checked on
+the Mac: the scripts pass a syntax check, the upload was rehearsed into a local
 folder (392 files, 80 MB), and a 50-image run of the same composer and report
 grades GO. The model call for CUDA (`colorize.generate`) cannot run on the
 Mac, so the smoke test is its first real test.
+
+`setup_env.sh` was run once (2026-10-04). It got as far as its last step, the
+import check, so the install and the model download had finished, and stopped
+there on the login node's process limit (see Likely failure modes). The script
+now caps its thread count; it has not been run again since.
 
 The user commits, pushes and submits (decided 2026-10-04).
 
@@ -79,6 +84,9 @@ On a login node, about 15 minutes. It builds
 `/home1/illyhoan/arc/augment/.venv` and downloads FLUX.2 klein 4B (about
 16 GB) to `/scratch1/illyhoan/hf`. It ends by importing everything the job
 needs and printing the versions; if that fails, the job would too.
+
+Running it again is safe and takes a minute or two: the packages and the
+model are already there and are not fetched twice.
 
 Differences from the Mac's `requirements.txt`, on purpose:
 - `torch==2.6.0` and `torchvision==0.21.0` from the `cu124` wheel index.
@@ -158,6 +166,7 @@ training set, not a split.
 | Symptom | Cause |
 |---|---|
 | `setup_env.sh`: pip cannot resolve a package | a pin in `requirements.txt` has no build for Python 3.11; leave it out in the `grep -vE` line there, as numpy is |
+| `OpenBLAS blas_thread_init: pthread_create failed ... Resource temporarily unavailable`, then `KeyboardInterrupt` in an import, on a login node | CARC allows a user 64 processes per login node, threads included. OpenBLAS (inside numpy) starts one per core, is refused, and interrupts its own process. Nothing is broken. `setup_env.sh` sets `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1`; put the same in front of any Python run by hand on a login node. If it still happens, something else of yours is holding the 64: `ps -u $USER -L --no-headers \| wc -l` |
 | `setup_env.sh`: `ImportError: libGL.so.1` on `import cv2` | Ultralytics pulled `opencv-python`; swap it for `opencv-python-headless` (the script says how), never both |
 | `no GPU visible` | `--gpus-per-task` wrong, or the partition has no free A100 |
 | Job stalls or fails at the first model call with a hub error | weights not in `/scratch1/illyhoan/hf` (scratch purged, or `setup_env.sh` not run); jobs run offline, so run `setup_env.sh` again |

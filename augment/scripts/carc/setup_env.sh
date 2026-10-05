@@ -14,6 +14,12 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p /home1/illyhoan/arc/logs "$HF_HOME"
 
+# A login node allows each user 64 processes, threads included. Left alone,
+# numpy's OpenBLAS starts a thread per core (32), is refused part-way and
+# interrupts its own process: the import check below dies with
+# KeyboardInterrupt.
+export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
+
 # The module line splatting uses, known to load together on this cluster.
 module purge
 module load gcc/12.3.0 cuda/12.4.1 python/3.11.9

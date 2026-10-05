@@ -577,8 +577,12 @@ is the robot it also missed in the real fight2 frames. It is not evidence that
 training on these images helps.
 
 ### Not verified
-- Nothing has run on CARC. The CUDA branch of `colorize.generate` has never
-  executed, and neither has `setup_env.sh` or `generate.job`.
+- No job has run on CARC. The CUDA branch of `colorize.generate` has never
+  executed, and neither has `generate.job`.
+- `setup_env.sh` has not run to the end. Its one run (2026-10-04) reached the
+  final import check, so the install and the model download had finished, and
+  stopped there on the login node's process limit (see Environment). The
+  script now caps its threads; not run again since.
 - `stage.sh` and `fetch.sh` have not talked to CARC. The upload's file list
   and rsync flags were rehearsed into a local folder.
 - Only fight4 has a coloured plate, so the plate check has only been
@@ -600,7 +604,7 @@ Current plan (approved 2026-10-04): a bulk `non-nemesis` set on CARC.
 | 1 | Documentation: class order, robot identities, this plan | Mac | Done 2026-10-04 |
 | 2 | Record robot identities as data; make the code CARC-ready | Mac | Done 2026-10-04: see Livery colouring and the bulk composer. Not run on CARC |
 | 3 | Commit and push `augment/`; copy inputs to CARC | Mac, the user | Handed over 2026-10-04: exact commands in `carc.md`. The upload was rehearsed locally (392 files, 80 MB) |
-| 4 | CARC setup and smoke run: every plate, one cut-out sheet per robot, 50 images | CARC, the user | Handed over 2026-10-04 |
+| 4 | CARC setup and smoke run: every plate, one cut-out sheet per robot, 50 images | CARC, the user | Handed over 2026-10-04. Setup stopped at its import check on the login node's process limit; fixed in the script, to be run again |
 | 5 | Full run, about 3,000 images, graded by `augment_report.py` | CARC, the user | Handed over 2026-10-04; to follow a look at the smoke run's plates and cut-out sheets |
 
 What the full run is to produce:
@@ -633,6 +637,14 @@ and a check that boxes still fit afterwards.
   `torch` 2.6.0 from the `cu124` index, because diffusers 0.40.0 needs 2.6 or
   newer; and `numpy` chosen by pip, because the pinned 2.5.3 needs Python 3.12
   and the CARC module is 3.11.9. All six scripts parse under 3.11.
+- **CARC login nodes allow each user 64 processes (threads count), 4 cores and
+  32 GB** (CARC notice, 2022-10-07). numpy's OpenBLAS starts one thread per
+  core it sees, 32 there, is refused part-way and raises an interrupt in its
+  own process, so `import cv2` or `import numpy` dies with
+  `KeyboardInterrupt` although nobody pressed anything. Seen on the first
+  `setup_env.sh` run. Any Python on a login node needs
+  `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1`. The limit is on login nodes, so
+  `generate.job` is not under it.
 - Ultralytics pulls in `opencv-python`, not the headless build. On CARC that
   build can fail to import for want of `libGL`; if it does, swap it for
   `opencv-python-headless` there, never both.
