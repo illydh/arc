@@ -205,26 +205,42 @@ Conclusions so far:
   count is still reported.
 
 ## Phase 3 findings (run 1)
-Measured 2026-10-01 by `scripts/splat_report.py` on `out/splat.ply` (export of
-run `2026-09-27_171857`). Held-out scores are from the training log; the
-`eval.job` re-score from the final checkpoint has not run yet. Lengths are
-model units: nerfstudio scales the scene so the largest camera coordinate
-is 1.0.
+Measured by `scripts/splat_report.py` on `out/splat.ply` (export of run
+`2026-09-27_171857`). Held-out scores are final as of 2026-10-04: they come
+from `eval.job` (`ns-eval` on checkpoint `step-000029999`, outputs in
+`out/eval/`). The provisional scores from the training log at step 29,000
+were 21.96 dB / 0.799 / 0.350, so the re-score changed nothing material.
+Lengths are model units: nerfstudio scales the scene so the largest camera
+coordinate is 1.0.
 
 | Check | Result |
 |---|---|
 | Integrity | 1,006,172 Gaussians, file size matches the header, no NaN/Inf |
-| Held-out (28 views) | PSNR 21.96 dB, SSIM 0.799, LPIPS 0.350; within 0.25 dB of its best from step 11,000 |
-| Training views | PSNR 29.0 dB averaged over the last 1,000 steps (gap 7.1 dB) |
-| Per view | 13.1 to 29.9 dB. Worst: `frame_00373` 13.1, `00383` 14.8, `00363` 14.9, `00140` 15.9, `00427` 16.5 |
+| Held-out (28 views) | PSNR 22.00 dB (spread 4.62), SSIM 0.808 (0.125), LPIPS 0.348 (0.151); within 0.25 dB of its best from step 11,000 |
+| Training views | PSNR 29.0 dB averaged over the last 1,000 steps (gap 7.0 dB) |
+| Per view | 13.2 to 29.8 dB. 9 views at 25 dB or above, 10 at 20-25, 9 below 20. Worst: `frame_00373` 13.2, `00383` 14.9, `00363` 15.0, `00140` 16.5, `00427` 16.6 |
+| By position in the walk | Frames before the unregistered stretch (< 253): 22 views, mean 23.4 dB. Frames after it (> 355): 6 views, mean 16.8 dB |
 | Floaters | 17.9% by count (15.1% outside the mapped region, 13.0% isolated, 0.5% in walked air); 20.2% by visual weight |
 | Extent | Full box 37.8 x 39.1 x 26.3; 1-99% box 9.2 x 10.8 x 4.8; camera path box 1.75 x 1.83 x 0.40 |
 | Floor | Present: covers 90.1% of the camera-path footprint, 4.2 degrees off level |
 | Mix | 51.6% solid, 12.5% faint, 2.4% oversized, 5.4% needle-shaped |
-| **Verdict** | **MARGINAL** (provisional, pending `eval.job`) |
+| **Verdict** | **MARGINAL** (final). Misses GO on PSNR (22.0 < 25), SSIM (0.808 < 0.85) and floater weight (20.2% > 5%). Clear of NO-GO on all three counts |
 
 Observations:
 
+- **Two separate failure modes, seen in the 28 `ns-eval` pairs.**
+  (1) Views after the unregistered stretch (`00363`-`00427`) look up and out
+  through the polycarbonate; five of the six are smeared by large dark blobs.
+  (2) About seven otherwise good interior views (`00060`, `00110`, `00120`,
+  `00140`, `00150`, `00180`, `00220`) have a blurred blob in the foreground
+  while the scene behind it is right. That is the signature of the splats
+  sitting in the walked air, which are 0.5% of the count but 15.9% of the
+  visual weight. Interior views without such a blob score 25-30 dB.
+- **Dropping the through-the-glass views alone would not reach GO.** The 22
+  earlier views average 23.4 dB. The foreground floaters have to go too.
+- **`splat_clean.ply` removes the walked-air splats but is unscored.** Whether
+  the cleanup raises held-out scores is untested: nothing here renders a
+  .ply, and `ns-eval` scores the checkpoint, not the file.
 - **The arena itself reconstructs.** The top-down render shows the square
   wall outline with the camera path inside it, and views across the floor
   score 28-30 dB.
@@ -252,6 +268,28 @@ Observations:
   of huge distant splats dominate: the 100 largest splats hold 45% of all
   world-area weight. Under the world-area definition the floater share is
   99.3%, which would have tripped NO-GO on that one number.
+
+### Cleanup (2026-10-03)
+`scripts/splat_clean.py` writes `out/splat_clean.ply` beside the original,
+which it leaves untouched. It removes exactly the floaters `splat_report.py`
+counts (same function) and rotates the model about the origin so the fitted
+floor is level. Run 1: 180,103 removed (17.9%), 826,069 kept (205 MB), floor
+4.18 -> 0.00 degrees.
+
+- **A rotation has to rotate more than positions.** Each splat's orientation
+  quaternion is left-multiplied by the levelling rotation. Its higher-order
+  spherical-harmonic colour (`f_rest_*`, channel-major) is rotated per SH
+  band with matrices fitted on random directions against gsplat's own basis.
+  Rotating positions alone would make colours shift as the view orbits.
+  Checked on the written file: colour by view, splat covariances and
+  positions all match the original to float32 precision.
+- **The crop is an axis-aligned box** around the SfM cloud (1st-99th
+  percentile, grown 25%), so part of the pit and seating beyond the walls
+  stays. A tighter arena-only crop needs a decision on whether that content
+  is wanted.
+- **`splat_report.py` does not apply to the cleaned file.** The report maps
+  cameras into the export's original frame; the cleaned file is levelled.
+  Grade the original export and clean afterwards.
 
 ## Risks to reconstruction quality
 - **Arena surfaces are adversarial for SfM.** Painted steel floor is
@@ -315,19 +353,25 @@ underlying trap is still on disk.
   trained on it.
 - `out/` (git-ignored) holds run 1 as copied down from CARC by hand:
   `out/splat.ply`, `out/splatfacto/2026-09-27_171857/` (config, checkpoint,
-  tfevents) and `out/report/` from `splat_report.py`. The local layout is
-  flatter than CARC's `out/<RUN>/...`.
-- Run 1 evaluated: MARGINAL, provisional (see Phase 3 findings).
+  tfevents), `out/report/` from `splat_report.py`, and `out/splat_clean.ply`
+  from `splat_clean.py`. The local layout is flatter than CARC's
+  `out/<RUN>/...`.
+- Run 1 evaluated: MARGINAL, final (see Phase 3 findings). `out/eval/` holds
+  the `ns-eval` metrics and renders.
 
 ### Next steps, in order
-1. **Re-score run 1 on CARC.** `sbatch --export=ALL,RUN=interior400
-   eval.job`, copy `out/interior400/eval/` down to `out/eval/`, and rerun
-   `splat_report.py` with it as the fourth argument.
+1. ~~Re-score run 1 on CARC.~~ Done 2026-10-04; the verdict is final.
 2. **Look at the .ply in a browser viewer** (see `carc.md`, Viewing) to check
    the report's pictures against the real thing.
-3. **Then choose run 2's changes.** The findings point at the through-the-glass
-   views and the floaters, not the arena interior. Front-half options, which
-   need SfM redone: exclude or mask the through-the-glass stretch (roughly
-   `--start 110 --end 228`), or raise density on the segments that did
-   register. Train-only options: camera pose refinement, per-image
-   appearance correction, a needle penalty.
+3. **Give each run its own output label** in `train.job`, `export.job` and
+   `eval.job` before run 2. As written, run 2 overwrites run 1's `export/`
+   and `eval/` on CARC and the "most recent run" lookup stops finding run 1.
+4. **Then choose run 2's changes.** The findings point at the through-the-glass
+   views and the foreground floaters, not the arena interior. Train-only
+   options, aimed at the floaters: camera pose refinement, per-image
+   appearance correction, a needle penalty. Front-half options, which need
+   SfM redone and are aimed at the through-the-glass views: exclude or mask
+   that stretch (roughly `--start 110 --end 228`), or raise density on the
+   segments that did register. A train-only run keeps the same 28 held-out
+   views, so it compares directly with run 1. Redoing SfM changes the frame
+   set, and with it the held-out views.

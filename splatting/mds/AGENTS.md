@@ -20,8 +20,10 @@ mds/       context.md, carc.md + this file (tracked, mirroring vision/mds/)
 scripts/   dev harnesses for the local CPU half
 scripts/carc/  staging, SLURM job and retrieval for the remote GPU half
 ```
-No packages yet: the local half of the pipeline is three scripts and there is
-only one pipeline. Add modules when there is something real to share.
+No packages yet: the local half of the pipeline is four scripts and there is
+only one pipeline. `splat_clean.py` imports its floater and floor logic from
+`splat_report.py` so the two can't disagree; add modules when there is more
+than that to share.
 
 ## Conventions
 - Minimal, direct implementations. No speculative abstraction, no config
@@ -60,6 +62,7 @@ Append new ones as they are introduced.
 .venv/bin/python splatting/scripts/process_video.py [--frames N] [--matcher M]
 .venv/bin/python splatting/scripts/sfm_report.py splatting/data/processed/<run>
 .venv/bin/python splatting/scripts/splat_report.py <splat.ply> <train-run-dir> <processed-run-dir> [<eval-dir>]
+.venv/bin/python splatting/scripts/splat_clean.py <splat.ply> <train-run-dir> <processed-run-dir>
 ```
 
 `process_video.py` writes a nerfstudio-format dataset to
@@ -68,8 +71,12 @@ Append new ones as they are introduced.
 floaters, floor, held-out scores) and writes `report.json` plus three PNGs to
 `report/` beside the .ply. Without `<eval-dir>` it takes held-out scores from
 the training run's tfevents file; with it, from `eval.job`'s `metrics.json`
-and renders. All three are CPU-only, and the thresholds sit at the top of
-each script.
+and renders. `splat_clean.py` removes the floaters the report counts, levels
+the floor, and writes `<name>_clean.ply` beside the input plus
+`report/clean.png`. It rotates quaternions and SH colour along with
+positions; see context.md. Run the report on the original export, not on a
+cleaned file. All four are CPU-only, and the thresholds sit at the top of
+`sfm_report.py` and `splat_report.py`.
 
 Training is remote and so is the `.ply` export -- `ns-train`, `ns-viewer` and
 `ns-export` all put the model on a CUDA device, so none of them run on this
