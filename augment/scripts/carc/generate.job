@@ -1,0 +1,65 @@
+#!/bin/bash
+
+#SBATCH --job-name=augment
+#SBATCH --partition=gpu
+#SBATCH --gpus-per-task=a100:1
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=48G
+#SBATCH --time=01:30:00
+#SBATCH --output=/home1/illyhoan/arc/logs/%x-%j.out
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=illyhoan@usc.edu
+
+# Colours the plates and the robot cut-outs with the image model, composes the
+# labelled images, and grades them. From a CARC terminal, after setup_env.sh
+# and after the inputs were copied up with stage.sh:
+#   sbatch --export=ALL,RUN=smoke,N=50,SHEETS=1,SEEDS=3 generate.job   (smoke test)
+#   sbatch --export=ALL,RUN=run1 generate.job                          (full run)
+# RUN names the output folder, augment/out/<RUN>. N is the number of images,
+# SHEETS caps the cut-out sheets per robot (0 = all), SEEDS are the colour
+# variants of each fight's plate. Works from any cwd -- paths are absolute.
+
+set -euo pipefail
+
+: "${RUN:?export RUN=<run-name>}"
+N="${N:-3000}"
+SHEETS="${SHEETS:-0}"
+SEEDS="${SEEDS:-1 2 3}"
+REPO="/home1/illyhoan/arc"
+
+# Must match setup_env.sh.
+module purge
+module load gcc/12.3.0 cuda/12.4.1 python/3.11.9
+# shellcheck disable=SC1091
+source "$REPO/augment/.venv/bin/activate"
+export HF_HOME="/scratch1/illyhoan/hf"
+export HF_HUB_OFFLINE=1
+export YOLO_VERBOSE=False
+cd "$REPO"
+
+nvidia-smi
+python -c "import torch; assert torch.cuda.is_available(), 'no GPU visible'; print('gpu:', torch.cuda.get_device_name(0))"
+
+# A picture that already exists is not generated again, so a re-run after a
+# failure picks up where it stopped, and fight4's plate with seed 3 -- the one
+# approved by eye on the Mac and copied up -- is used as it is.
+# shellcheck disable=SC2086
+python augment/scripts/colorize.py plate fight2 fight3 fight4 fight5 --seeds $SEEDS
+python augment/scripts/colorize.py cutouts fight1 fight2 fight3 fight4 fight5 --sheets "$SHEETS" --seeds 7
+
+# Composing is CPU work, one process per core. The mesh renders are made
+# first: eight processes building the same files at once would collide.
+python -c "import sys; sys.path.insert(0, 'augment/scripts'); import compose; compose.sprite_bank('gigabyte')"
+EACH=$(( (N + 7) / 8 ))
+pids=()
+for i in 0 1 2 3 4 5 6 7; do
+  python augment/scripts/compose.py "$RUN" -n "$EACH" --start $(( i * EACH )) &
+  pids+=("$!")
+done
+for pid in "${pids[@]}"; do wait "$pid"; done
+
+python augment/scripts/augment_report.py "augment/out/$RUN"
+
+echo "done; images and report under $REPO/augment/out/$RUN"

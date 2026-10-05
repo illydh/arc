@@ -1,0 +1,29 @@
+# Generated-image stack. Deliberately separate from vision/requirements.txt and
+# splatting/requirements.txt, and installed into its own venv (augment/.venv
+# locally; a separate one on CARC). See mds/context.md.
+#
+# Pins are what pip resolved together on 2026-10-04 (Python 3.12.11, macOS arm64).
+# CARC installs from this file too, minus torch, torchvision and numpy: see
+# scripts/carc/setup_env.sh for why.
+
+torch==2.14.1
+torchvision==0.29.1
+
+# The release that saved finetune_color.pt, so the proof test trains with the
+# code the detector was built with. It brings in opencv-python; do not add
+# opencv-python-headless beside it -- both unpack into the same cv2/ directory
+# and clobber each other (the root .venv has exactly that problem).
+ultralytics==8.4.11
+
+# Flux2KleinPipeline first shipped in diffusers 0.37.1.
+diffusers==0.40.0
+transformers==5.18.0
+accelerate==1.15.0
+safetensors==0.8.0
+# 1.33.0, not the newest 2.x: it is what transformers 5.18.0 and diffusers
+# 0.40.0 resolve to together.
+huggingface_hub==1.33.0
+
+numpy==2.5.3
+pillow==12.3.0
+matplotlib==3.11.2

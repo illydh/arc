@@ -1,0 +1,4 @@
+# Mac-only runtime for the image model (Apple MLX), in its own venv at
+# augment/mlx/.venv. mflux pins its own torch/transformers stack, so it stays
+# out of augment/.venv. Not used on CARC.
+mflux==0.21.0
