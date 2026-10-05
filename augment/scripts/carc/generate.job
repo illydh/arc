@@ -62,4 +62,9 @@ for pid in "${pids[@]}"; do wait "$pid"; done
 
 python augment/scripts/augment_report.py "augment/out/$RUN"
 
+# The coloured cut-out sheets go beside the report, so that fetching the run
+# is enough to look at what the model painted.
+mkdir -p "augment/out/$RUN/report/cutouts"
+cp augment/data/sprites/cutouts/*/*_color.png "augment/out/$RUN/report/cutouts/"
+
 echo "done; images and report under $REPO/augment/out/$RUN"

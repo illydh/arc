@@ -45,6 +45,10 @@ PY
 python - <<'PY'
 import cv2, diffusers, torch, ultralytics
 from diffusers import Flux2KleinPipeline
+# The report checks that the set loads in Ultralytics, and that check fetches
+# a font the first time. Fetched here, not in the middle of a job.
+from ultralytics.utils.checks import check_font
+check_font("Arial.ttf")
 print("torch", torch.__version__, "built for cuda", torch.version.cuda)
 print("diffusers", diffusers.__version__, "| ultralytics", ultralytics.__version__, "| cv2", cv2.__version__)
 print("NOTE: torch.cuda.is_available() is False on a login node -- that is")

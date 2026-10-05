@@ -223,6 +223,9 @@ for RGBTrack 6D pose testing.
   not fit in 16 GB. The planned bake-off against SDXL 1.0 inpainting is
   dropped: klein did both jobs in the Mac trial and its colour is calibrated
   afterwards.
+- **The bulk set is generated on CARC, and the user commits, pushes and
+  submits** (user, 2026-10-04), although its model work would fit in about
+  2.5 hours on the Mac. `mds/carc.md` is the procedure.
 - Bulk generation and detector training run on USC CARC. All bulk images come
   from one model, whatever the Mac trial uses.
 - Proof test: one whole fight held out, chosen before any training. Arms, three
@@ -575,7 +578,9 @@ training on these images helps.
 
 ### Not verified
 - Nothing has run on CARC. The CUDA branch of `colorize.generate` has never
-  executed.
+  executed, and neither has `setup_env.sh` or `generate.job`.
+- `stage.sh` and `fetch.sh` have not talked to CARC. The upload's file list
+  and rsync flags were rehearsed into a local folder.
 - Only fight4 has a coloured plate, so the plate check has only been
   exercised on the approved plate and on two known-bad ones.
 - The invented-paint branch (every fifth sheet) did not run in the Mac check,
@@ -594,9 +599,9 @@ Current plan (approved 2026-10-04): a bulk `non-nemesis` set on CARC.
 |---|---|---|---|
 | 1 | Documentation: class order, robot identities, this plan | Mac | Done 2026-10-04 |
 | 2 | Record robot identities as data; make the code CARC-ready | Mac | Done 2026-10-04: see Livery colouring and the bulk composer. Not run on CARC |
-| 3 | Commit and push `augment/`; copy inputs to CARC | Mac, user's go-ahead | Not started |
-| 4 | CARC setup and smoke run: every plate, one cut-out sheet per fight, 50 images | CARC, user submits | Not started |
-| 5 | Full run, about 3,000 images, graded by `augment_report.py` | CARC, user submits | Not started |
+| 3 | Commit and push `augment/`; copy inputs to CARC | Mac, the user | Handed over 2026-10-04: exact commands in `carc.md`. The upload was rehearsed locally (392 files, 80 MB) |
+| 4 | CARC setup and smoke run: every plate, one cut-out sheet per robot, 50 images | CARC, the user | Handed over 2026-10-04 |
+| 5 | Full run, about 3,000 images, graded by `augment_report.py` | CARC, the user | Handed over 2026-10-04; to follow a look at the smoke run's plates and cut-out sheets |
 
 What the full run is to produce:
 - About 3,000 images at 1440x762, each with a grey copy.
