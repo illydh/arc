@@ -14,13 +14,17 @@
 
 # Export-only: writes splat.ply from an already-trained run, without
 # retraining. Use when train.job finished training but its export step failed.
-#   sbatch --export=ALL,RUN=interior400 export.job
-# Exports the most recent training run under out/<RUN>/splatfacto/.
+#   sbatch --export=ALL,RUN=interior400,LABEL=run2a export.job
+# LABEL is the run folder under out/<RUN>/splatfacto/. For run 1, which
+# predates labels, it is the timestamp: LABEL=2026-09-27_171857.
+# Writes out/<RUN>/splatfacto/<LABEL>/export/splat.ply.
 
 set -euo pipefail
 
-: "${RUN:?export RUN=<run-name>}"
+: "${RUN:?export RUN=<dataset-name>}"
+: "${LABEL:?export LABEL=<run-label>}"
 CARC_OUT="/home1/illyhoan/arc/splatting/out"
+RUN_DIR="$CARC_OUT/$RUN/splatfacto/$LABEL"
 
 # Must match setup_env.sh and train.job.
 module purge
@@ -31,9 +35,9 @@ export LD_LIBRARY_PATH="$(dirname "$(g++ -print-file-name=libstdc++.so.6)"):${LD
 # shellcheck disable=SC1091
 source "/home1/illyhoan/arc/splatting/.venv/bin/activate"
 
-# nerfstudio writes to <output-dir>/<experiment>/<method>/<timestamp>/.
-CONFIG="$(ls -t "$CARC_OUT/$RUN"/splatfacto/*/config.yml | head -1)"
+CONFIG="$RUN_DIR/config.yml"
+[ -f "$CONFIG" ] || { echo "no run at $RUN_DIR" >&2; exit 1; }
 echo "exporting from $CONFIG"
-ns-export gaussian-splat --load-config "$CONFIG" --output-dir "$CARC_OUT/$RUN/export"
+ns-export gaussian-splat --load-config "$CONFIG" --output-dir "$RUN_DIR/export"
 
-echo "done; splat.ply under $CARC_OUT/$RUN/export"
+echo "done; splat.ply under $RUN_DIR/export"

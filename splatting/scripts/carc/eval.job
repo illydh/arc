@@ -15,15 +15,19 @@
 # Eval-only: re-renders the held-out views from an already-trained run and
 # scores them, without retraining. Runs here for the same reason the export
 # does: the model only loads onto a CUDA device.
-#   sbatch --export=ALL,RUN=interior400 eval.job
-# Evaluates the most recent training run under out/<RUN>/splatfacto/.
-# Writes out/<RUN>/eval/metrics.json and out/<RUN>/eval/renders/*.png, which
-# scripts/splat_report.py reads as its optional fourth argument.
+#   sbatch --export=ALL,RUN=interior400,LABEL=run2a eval.job
+# LABEL is the run folder under out/<RUN>/splatfacto/. For run 1, which
+# predates labels, it is the timestamp: LABEL=2026-09-27_171857.
+# Writes out/<RUN>/splatfacto/<LABEL>/eval/metrics.json and
+# .../eval/renders/*.png, which scripts/splat_report.py reads as its optional
+# fourth argument.
 
 set -euo pipefail
 
-: "${RUN:?export RUN=<run-name>}"
+: "${RUN:?export RUN=<dataset-name>}"
+: "${LABEL:?export LABEL=<run-label>}"
 CARC_OUT="/home1/illyhoan/arc/splatting/out"
+RUN_DIR="$CARC_OUT/$RUN/splatfacto/$LABEL"
 
 # Must match setup_env.sh and train.job.
 module purge
@@ -32,11 +36,11 @@ export LD_LIBRARY_PATH="$(dirname "$(g++ -print-file-name=libstdc++.so.6)"):${LD
 # shellcheck disable=SC1091
 source "/home1/illyhoan/arc/splatting/.venv/bin/activate"
 
-# nerfstudio writes to <output-dir>/<experiment>/<method>/<timestamp>/.
-CONFIG="$(ls -t "$CARC_OUT/$RUN"/splatfacto/*/config.yml | head -1)"
+CONFIG="$RUN_DIR/config.yml"
+[ -f "$CONFIG" ] || { echo "no run at $RUN_DIR" >&2; exit 1; }
 echo "evaluating $CONFIG"
 ns-eval --load-config "$CONFIG" \
-  --output-path "$CARC_OUT/$RUN/eval/metrics.json" \
-  --render-output-path "$CARC_OUT/$RUN/eval/renders"
+  --output-path "$RUN_DIR/eval/metrics.json" \
+  --render-output-path "$RUN_DIR/eval/renders"
 
-echo "done; metrics.json and renders under $CARC_OUT/$RUN/eval"
+echo "done; metrics.json and renders under $RUN_DIR/eval"

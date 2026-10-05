@@ -22,6 +22,13 @@ toolchain that should not leak into `vision/`'s dependency manifest.
 `splatting/data/video_inside_battlebox.mp4`
 - 2560x1440, 30 fps, HEVC, 423.38 s, 12,702 frames, ~953 MB.
 - Handheld phone walkthrough of the arena interior.
+- Metadata (ffprobe, 2026-10-04): Samsung phone, Android 16; HEVC Main 10,
+  HLG transfer (`arib-std-b67`), BT.2020 primaries, ~18 Mbit/s. So 2560x1440
+  is the recorded size, and `images/` holds the full definition.
+- `process_video.py` extracts 8-bit JPEGs with no tone-mapping filter, so
+  the frames carry HLG/BT.2020 values read as SDR. This is consistent
+  across frames and does not affect geometry; its effect on the splat's
+  colour has not been checked.
 - Unrelated to `vision/`'s fight clips (1440x762, ~98 fps, dark/noisy). Do not
   confuse the two datasets.
 
@@ -363,14 +370,22 @@ underlying trap is still on disk.
 1. ~~Re-score run 1 on CARC.~~ Done 2026-10-04; the verdict is final.
 2. **Look at the .ply in a browser viewer** (see `carc.md`, Viewing) to check
    the report's pictures against the real thing.
-3. **Give each run its own output label** in `train.job`, `export.job` and
-   `eval.job` before run 2. As written, run 2 overwrites run 1's `export/`
-   and `eval/` on CARC and the "most recent run" lookup stops finding run 1.
-4. **Then choose run 2's changes.** The findings point at the through-the-glass
-   views and the foreground floaters, not the arena interior. Train-only
-   options, aimed at the floaters: camera pose refinement, per-image
-   appearance correction, a needle penalty. Front-half options, which need
-   SfM redone and are aimed at the through-the-glass views: exclude or mask
+3. ~~Give each run its own output label.~~ Done 2026-10-04: the three jobs
+   take a required `LABEL` and keep everything for a run under
+   `out/<RUN>/splatfacto/<LABEL>/`; `train.job` now also runs the eval.
+   Checked by a dry run with stand-in commands and by feeding the resulting
+   `ns-train` arguments to nerfstudio's parser. Not yet run on CARC.
+4. **Run 2 is chosen: `scripts/carc/submit_run2.sh`.** Two parallel jobs with
+   camera pose refinement, the bilateral grid and scale regularization on:
+   `run2a` at half size, `run2b` at full size. A re-shoot is not possible.
+   Two of those settings act on training photos only, so held-out scores can
+   drop without the result being worse; `color-corrected-metrics` is on to
+   discount the colour part, and the real-vs-render pairs decide the rest.
+   `splat_report.py` does not read the `cc_` scores yet.
+5. **Background for run 3, if needed.** The findings point at the through-the-glass
+   views and the foreground floaters, not the arena interior. Run 2 covers
+   the train-only options aimed at the floaters. Front-half options, which
+   need SfM redone and are aimed at the through-the-glass views: exclude or mask
    that stretch (roughly `--start 110 --end 228`), or raise density on the
    segments that did register. A train-only run keeps the same 28 held-out
    views, so it compares directly with run 1. Redoing SfM changes the frame

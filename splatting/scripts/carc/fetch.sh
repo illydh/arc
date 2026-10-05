@@ -15,6 +15,6 @@ echo "fetching $CARC_HOST:$CARC_OUT/$RUN -> $DEST"
 rsync -avh --progress "$CARC_USER@$CARC_HOST:$CARC_OUT/$RUN/" "$DEST/"
 
 echo
-echo "view the exported splat at $DEST/export/*.ply"
+echo "view the exported splat at $DEST/splatfacto/<label>/export/*.ply"
 echo "Drop it into a WebGL viewer (e.g. superspl.at/editor or antimatter15.com/splat)."
 echo "ns-viewer will NOT work on this machine -- it renders through gsplat, which needs CUDA."

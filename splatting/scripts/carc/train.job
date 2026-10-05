@@ -14,18 +14,35 @@
 
 # The whole submission process, from a CARC terminal, is:
 #   1. bash setup_env.sh        (once only -- builds the venv)
-#   2. sbatch --export=ALL,RUN=interior400,ITERS=500 train.job   (smoke test)
-#      sbatch --export=ALL,RUN=interior400 train.job             (full run)
-# Nothing else is required. RUN is the only variable this script still reads
-# from the submitting environment; CARC_DATA, CARC_OUT and the venv path are
-# hardcoded below. Works from any cwd -- paths here are absolute.
+#   2. sbatch --export=ALL,RUN=interior400,LABEL=smoke,ITERS=500 train.job
+#      sbatch --export=ALL,RUN=interior400,LABEL=run3 train.job
+# Trains, then exports splat.ply and scores the held-out views, all into
+#   out/<RUN>/splatfacto/<LABEL>/
+# RUN is the dataset name and LABEL names this training run. LABEL is
+# required and must be new: without it every run wrote its export and eval to
+# the same place, and parallel runs could not be told apart.
+# EXTRA (optional) is appended to ns-train, so it has to be set in the
+# submitting shell rather than inside --export, where commas and spaces
+# break. Dataparser flags go last, after the nerfstudio-data subcommand:
+#   EXTRA="--pipeline.model.use-bilateral-grid True nerfstudio-data --downscale-factor 1" \
+#     sbatch --export=ALL,RUN=interior400,LABEL=run3 train.job
+# CARC_DATA, CARC_OUT and the venv path are hardcoded below. Works from any
+# cwd -- paths here are absolute.
 
 set -euo pipefail
 
-: "${RUN:?export RUN=<run-name>}"
+: "${RUN:?export RUN=<dataset-name>}"
+: "${LABEL:?export LABEL=<new-run-label>}"
 CARC_DATA="/home1/illyhoan/arc/splatting/data/processed"
 CARC_OUT="/home1/illyhoan/arc/splatting/out"
 ITERS="${ITERS:-30000}"
+EXTRA="${EXTRA:-}"
+RUN_DIR="$CARC_OUT/$RUN/splatfacto/$LABEL"
+
+if [ -e "$RUN_DIR" ]; then
+  echo "$RUN_DIR already exists; choose a new LABEL" >&2
+  exit 1
+fi
 
 # Must match setup_env.sh, or gsplat's runtime CUDA compile fails.
 module purge
@@ -41,23 +58,35 @@ python -c "import torch; assert torch.cuda.is_available(), 'no GPU visible'; pri
 
 # --vis tensorboard, not viewer: there is no browser reachable from a compute
 # node, and the default viewer blocks waiting for one.
-# No --downscale-factor: the dataparser already picks images_2/ on its own,
+# No --downscale-factor by default: the dataparser picks images_2/ on its own,
 # because it downscales until the max dimension is under 1600px and these
-# frames are 2560 wide.
+# frames are 2560 wide. Pass it through EXTRA to train at full size.
+# --timestamp is nerfstudio's name for the run folder; it defaults to the
+# clock, which is what made runs hard to address.
+echo "run: $RUN_DIR"
+echo "extra: ${EXTRA:-(none)}"
+# shellcheck disable=SC2086
 ns-train splatfacto \
   --data "$CARC_DATA/$RUN" \
   --output-dir "$CARC_OUT" \
   --experiment-name "$RUN" \
+  --timestamp "$LABEL" \
   --vis tensorboard \
   --max-num-iterations "$ITERS" \
-  --viewer.quit-on-train-completion True
+  --viewer.quit-on-train-completion True \
+  $EXTRA
 
 # Export the .ply here rather than locally: ns-viewer and ns-export both load
 # the model onto a CUDA device, so neither runs on the Apple Silicon box. A
 # .ply opens in any WebGL splat viewer with no CUDA at all.
-# nerfstudio writes to <output-dir>/<experiment>/<method>/<timestamp>/.
-CONFIG="$(ls -t "$CARC_OUT/$RUN"/splatfacto/*/config.yml | head -1)"
-echo "exporting from $CONFIG"
-ns-export gaussian-splat --load-config "$CONFIG" --output-dir "$CARC_OUT/$RUN/export"
+# Export and eval are independent: if one fails the other still runs, and the
+# failed one can be redone alone with export.job or eval.job.
+CONFIG="$RUN_DIR/config.yml"
+status=0
+ns-export gaussian-splat --load-config "$CONFIG" --output-dir "$RUN_DIR/export" || status=1
+ns-eval --load-config "$CONFIG" \
+  --output-path "$RUN_DIR/eval/metrics.json" \
+  --render-output-path "$RUN_DIR/eval/renders" || status=1
 
-echo "done; checkpoints under $CARC_OUT/$RUN, splat.ply under $CARC_OUT/$RUN/export"
+echo "done (status $status); config, checkpoint, export/ and eval/ under $RUN_DIR"
+exit "$status"

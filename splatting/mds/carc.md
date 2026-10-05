@@ -9,7 +9,8 @@ terminal -- not the laptop-upload path this doc originally assumed. `train.job`
 and `setup_env.sh` are now self-contained accordingly: `CARC_ENV`, `CARC_DATA`,
 `CARC_OUT` and the `--output` log path are hardcoded in them, all under
 `/home1/illyhoan/arc/`, and nothing is read from the submitting environment
-except `RUN` (and optionally `ITERS`).
+except `RUN` (the dataset), `LABEL` (the name of this training run) and
+optionally `ITERS` and `EXTRA`.
 
 ## Submitting a job (CARC terminal)
 
@@ -22,34 +23,84 @@ cd /home1/illyhoan/arc/splatting/scripts/carc
 bash setup_env.sh   # step 1, once only (~10 min): builds the venv, creates
                      # the log directory. Skip on every later submit.
 
-# step 2, every submit:
-sbatch --export=ALL,RUN=interior400,ITERS=500 train.job   # smoke test, ~2 min
+# step 2, every submit. LABEL is required and must be new:
+sbatch --export=ALL,RUN=interior400,LABEL=smoke,ITERS=500 train.job   # smoke test, ~2 min
 squeue -u $USER
 tail -f /home1/illyhoan/arc/logs/splatfacto-<jobid>.out
 
-sbatch --export=ALL,RUN=interior400 train.job              # full run, once
-                                                             # the smoke test
-                                                             # exits 0
+sbatch --export=ALL,RUN=interior400,LABEL=run3 train.job              # full run
 ```
 
 That's two scripts total, one of them (`setup_env.sh`) run once ever, not
 once per job. `stage.sh`/`fetch.sh` are not part of this and don't need to run.
 
-## After training: export-only and eval-only jobs
+One submission now does everything for a run: train, export `splat.ply`,
+score the held-out views. It all lands in one folder,
+`out/<RUN>/splatfacto/<LABEL>/`, so runs can't overwrite each other and can
+run in parallel. `train.job` refuses a `LABEL` whose folder already exists.
 
-Both reuse the newest run under `out/<RUN>/splatfacto/` and never retrain.
+Extra `ns-train` settings go in `EXTRA`, set in the submitting shell (inside
+`--export` its commas and spaces break). Dataparser flags go last, after the
+`nerfstudio-data` subcommand:
 
 ```sh
-sbatch --export=ALL,RUN=interior400 export.job   # rewrite splat.ply only
-sbatch --export=ALL,RUN=interior400 eval.job     # re-score held-out views
+EXTRA="--pipeline.model.use-bilateral-grid True nerfstudio-data --downscale-factor 1" \
+  sbatch --export=ALL,RUN=interior400,LABEL=run3 train.job
+```
+
+## Run 2 (two parallel jobs)
+
+The whole iteration is two commands, one on each machine.
+
+```sh
+# 1. CARC terminal, once the scripts are pushed:
+cd /home1/illyhoan/arc && git pull && bash splatting/scripts/carc/submit_run2.sh
+
+# 2. laptop, from the repo root, once both jobs have finished:
+rsync -avh --exclude nerfstudio_models --exclude '2026-*' \
+  illyhoan@discovery.usc.edu:/home1/illyhoan/arc/splatting/out/interior400/splatfacto/ \
+  splatting/out/splatfacto/
+```
+
+`submit_run2.sh` records the exact settings and submits both jobs; each job
+trains, exports and scores on its own. Both turn on camera pose refinement,
+the bilateral grid and scale regularization, all off in run 1. `run2a`
+trains at half size like run 1, so the two compare on the same 28 held-out
+views at the same resolution. `run2b` trains at full size (2560x1440); it is
+slower and uses more GPU memory, both unmeasured. The script checks that
+every full-size frame named in `transforms.json` is on CARC and skips
+`run2b`, with a message, if one is missing. Logs are
+`logs/run2a-<jobid>.out` and `logs/run2b-<jobid>.out`.
+
+The `rsync` copies every labelled run in one go. It skips the checkpoints
+(about 740 MB at half size, not needed locally) and run 1's timestamped
+folder, which is already local. Then grade each run:
+
+```sh
+.venv/bin/python splatting/scripts/splat_report.py \
+  splatting/out/splatfacto/run2a/export/splat.ply splatting/out/splatfacto/run2a \
+  splatting/data/processed/interior400 splatting/out/splatfacto/run2a/eval
+```
+
+## After training: export-only and eval-only jobs
+
+Only needed if a step of `train.job` failed. Both take the run's `LABEL` and
+never retrain. Run 1 predates labels; its label is its timestamp.
+
+```sh
+sbatch --export=ALL,RUN=interior400,LABEL=run2a export.job   # rewrite splat.ply only
+sbatch --export=ALL,RUN=interior400,LABEL=run2a eval.job     # re-score held-out views
+sbatch --export=ALL,RUN=interior400,LABEL=2026-09-27_171857 eval.job   # run 1
 ```
 
 `eval.job` runs `ns-eval` on the final checkpoint and writes
-`out/<RUN>/eval/metrics.json` (mean and spread of PSNR / SSIM / LPIPS over
-the held-out views) and `out/<RUN>/eval/renders/eval_img_*.png` (real photo
-left, render right). Copy that `eval/` folder down to `splatting/out/eval/`
-and pass it as `splat_report.py`'s fourth argument. It runs on CARC for the
-same reason the export does: the model only loads onto a CUDA device.
+`out/<RUN>/splatfacto/<LABEL>/eval/metrics.json` (mean and spread of PSNR /
+SSIM / LPIPS over the held-out views) and `.../eval/renders/eval_img_*.png`
+(real photo left, render right). Pass that `eval/` folder as
+`splat_report.py`'s fourth argument. It runs on CARC for the same reason the
+export does: the model only loads onto a CUDA device. Run 1's earlier
+outputs stay where the old scripts put them, `out/interior400/export/` and
+`out/interior400/eval/`.
 
 ## Preflight
 
@@ -117,9 +168,9 @@ train at full resolution.
   since it targets a max dimension under 1600 px and these are 2560 wide).
 - 30k iterations of splatfacto on one A100: roughly 20-40 minutes. The
   `--time=02:00:00` request is deliberately loose.
-- Output: `$CARC_OUT/interior400/splatfacto/<timestamp>/` with `config.yml`,
-  `nerfstudio_models/`, `dataparser_transforms.json` and the tfevents file;
-  the export lands separately at `$CARC_OUT/interior400/export/splat.ply`.
+- Output: `$CARC_OUT/interior400/splatfacto/<LABEL>/` with `config.yml`,
+  `nerfstudio_models/`, `dataparser_transforms.json`, the tfevents file,
+  `export/splat.ply` and `eval/`.
 
 ## Viewing -- read before planning Phase 3
 
