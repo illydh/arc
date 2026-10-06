@@ -66,11 +66,21 @@ rsync -avh --exclude nerfstudio_models --exclude '2026-*' \
 trains, exports and scores on its own. Both turn on camera pose refinement,
 the bilateral grid and scale regularization, all off in run 1. `run2a`
 trains at half size like run 1, so the two compare on the same 28 held-out
-views at the same resolution. `run2b` trains at full size (2560x1440); it is
-slower and uses more GPU memory, both unmeasured. The script checks that
+views at the same resolution. `run2b` trains at full size (2560x1440) and
+needs about 9 hours as configured (see What to expect). The script checks that
 every full-size frame named in `transforms.json` is on CARC and skips
 `run2b`, with a message, if one is missing. Logs are
 `logs/run2a-<jobid>.out` and `logs/run2b-<jobid>.out`.
+
+The script is safe to run again: it does not resubmit a run whose folder
+already exists. To redo a run, move its folder aside first. `run2b` timed
+out on its first try (job 12658962), so its rerun is:
+
+```sh
+cd /home1/illyhoan/arc && git pull \
+  && mv splatting/out/interior400/splatfacto/run2b splatting/out/interior400/splatfacto/run2b_timeout \
+  && bash splatting/scripts/carc/submit_run2.sh
+```
 
 The `rsync` copies every labelled run in one go. It skips the checkpoints
 (about 740 MB at half size, not needed locally) and run 1's timestamped
@@ -166,8 +176,14 @@ train at full resolution.
 
 - 280 images at 1280x720 (the dataparser downscales to `images_2/` on its own,
   since it targets a max dimension under 1600 px and these are 2560 wide).
-- 30k iterations of splatfacto on one A100: roughly 20-40 minutes. The
-  `--time=02:00:00` request is deliberately loose.
+- 30k iterations of splatfacto on one A100, measured: run 1 (default
+  settings, half size) trained in 11 minutes. Run 2a (three settings plus
+  `color-corrected-metrics`, half size) took 1 h 54 min, minutes short of the
+  old 2-hour limit. Run 2b (same, full size) reached step 10,000 of 30,000 in
+  2 hours and was cancelled; at its 1.22 s per step the whole run is about
+  9 hours. `train.job` now asks for `--time=12:00:00`.
+- Nearly all of that slowdown is `color-corrected-metrics`, not the three
+  training settings: see context.md, Run 2 timing.
 - Output: `$CARC_OUT/interior400/splatfacto/<LABEL>/` with `config.yml`,
   `nerfstudio_models/`, `dataparser_transforms.json`, the tfevents file,
   `export/splat.ply` and `eval/`.

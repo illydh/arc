@@ -7,7 +7,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH --time=02:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=/home1/illyhoan/arc/logs/%x-%j.out
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=illyhoan@usc.edu

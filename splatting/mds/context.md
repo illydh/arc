@@ -298,6 +298,33 @@ floor is level. Run 1: 180,103 removed (17.9%), 826,069 kept (205 MB), floor
   cameras into the export's original frame; the cleaned file is levelled.
   Grade the original export and clean afterwards.
 
+## Run 2 timing (measured 2026-10-05, from the job logs)
+| Run | Step time at full training size | 30,000 steps |
+|---|---|---|
+| Run 1: defaults, 1280x720 | 14 ms | 11 min |
+| Run 2a: three settings + `color-corrected-metrics`, 1280x720 | 247 ms | 1 h 54 min |
+| Run 2b: same, 2560x1440 | 1,221 ms | cancelled at step 10,000 after 2 h; about 9 h projected |
+
+- **The step time moves in three stages** because splatfacto trains at a
+  quarter of the image size until step 3,000, half until 6,000, and full
+  size after (`num_downscales=2`, `resolution_schedule=3000`). Run 2a: 32,
+  73, then 247 ms. Run 2b: 68, 246, then 1,221 ms. After step 6,000 it is
+  flat and does not follow the Gaussian count, so the cost is per pixel.
+- **`color_corrected_metrics=True` is the cost.** With it on,
+  `get_metrics_dict` calls `color_correct` on every training step: 15
+  least-squares solves over every pixel of the image. Run 2a's profiler
+  shows it directly: scoring one held-out image took 0.256 s against
+  0.021 s in run 1, and that path uses neither the bilateral grid nor pose
+  refinement. The extra 0.235 s matches the extra 233 ms per training step.
+- **The flag only reports a number.** It is not part of the loss, so
+  training without it gives the same model. The colour-corrected scores can
+  be computed afterwards from the saved real-vs-render pairs instead.
+  Without it, a full-size run should take a fraction of the 9 hours; that is
+  an estimate, not a measurement.
+- **Projection for run 2b as configured:** 2 h for the first 10,000 steps
+  plus 20,000 x 1.22 s = 6.8 h, about 9 h, then export and eval. Inside the
+  12-hour limit with about 3 hours to spare.
+
 ## Risks to reconstruction quality
 - **Arena surfaces are adversarial for SfM.** Painted steel floor is
   low-texture; polycarbonate walls are specular and partly transparent. These
@@ -382,6 +409,11 @@ underlying trap is still on disk.
    drop without the result being worse; `color-corrected-metrics` is on to
    discount the colour part, and the real-vs-render pairs decide the rest.
    `splat_report.py` does not read the `cc_` scores yet.
+   Status 2026-10-05: `run2a` finished (job 12658961, 917,163 Gaussians,
+   898,595 exported, eval written). `run2b` was cancelled at the 2-hour
+   limit at step 10,000 (job 12658962). `train.job` now asks for 12 hours
+   and `submit_run2.sh` skips runs that already exist; `run2b` is to be
+   resubmitted after moving its partial folder aside. See Run 2 timing.
 5. **Background for run 3, if needed.** The findings point at the through-the-glass
    views and the foreground floaters, not the arena interior. Run 2 covers
    the train-only options aimed at the floaters. Front-half options, which

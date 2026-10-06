@@ -15,10 +15,14 @@
 # cc_psnr/cc_ssim/cc_lpips to the eval output, which discount the first.
 #   run2a  half size (1280x720) like run 1, so the two compare directly
 #   run2b  full size (2560x1440); skipped if any full-size frame is missing
+# Safe to run again: a run whose folder already exists is not resubmitted. To
+# redo one (run2b timed out at 2 h on its first try), move its folder aside
+# first.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 DATA="/home1/illyhoan/arc/splatting/data/processed/interior400"
+RUNS="/home1/illyhoan/arc/splatting/out/interior400/splatfacto"
 
 # run2b reads the full-size frames, which run 1 never needed. Check every
 # frame transforms.json names before queueing a job that would die on one.
@@ -38,11 +42,17 @@ SETTINGS="--pipeline.model.camera-optimizer.mode SO3xR3 \
 --pipeline.model.use-scale-regularization True \
 --pipeline.model.color-corrected-metrics True"
 
-EXTRA="$SETTINGS" \
-  sbatch --job-name=run2a --export=ALL,RUN=interior400,LABEL=run2a train.job
-if [ "$missing" -eq 0 ]; then
+if [ -e "$RUNS/run2a" ]; then
+  echo "run2a not submitted: $RUNS/run2a already exists"
+else
+  EXTRA="$SETTINGS" \
+    sbatch --job-name=run2a --export=ALL,RUN=interior400,LABEL=run2a train.job
+fi
+if [ -e "$RUNS/run2b" ]; then
+  echo "run2b not submitted: $RUNS/run2b already exists"
+elif [ "$missing" -ne 0 ]; then
+  echo "run2b not submitted: $missing of $total full-size frames missing under $DATA/images" >&2
+else
   EXTRA="$SETTINGS nerfstudio-data --downscale-factor 1" \
     sbatch --job-name=run2b --export=ALL,RUN=interior400,LABEL=run2b train.job
-else
-  echo "run2b not submitted: $missing of $total full-size frames missing under $DATA/images" >&2
 fi
