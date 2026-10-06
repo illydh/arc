@@ -1,0 +1,178 @@
+Mon Oct  5 12:04:04 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.159.04             Driver Version: 580.159.04     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-PCIE-40GB          On  |   00000000:81:00.0 Off |                    0 |
+| N/A   27C    P0             33W /  250W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+gpu: NVIDIA A100-PCIE-40GB
+/home1/illyhoan/arc/augment/.venv/lib/python3.11/site-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
+  deprecate("torch_dtype", "1.0.0", _TORCH_DTYPE_DEPRECATION_MESSAGE)
+Couldn't connect to the Hub: Cannot reach https://huggingface.co/api/models/black-forest-labs/FLUX.2-klein-4B: offline mode is enabled. To disable it, please unset the `HF_HUB_OFFLINE` environment variable..
+Will try to load from local cache.
+Loading pipeline components...:   0%|          | 0/5 [00:00<?, ?it/s]Loading pipeline components...:  20%|██        | 1/5 [00:02<00:11,  2.94s/it]Loading pipeline components...:  40%|████      | 2/5 [00:03<00:04,  1.45s/it]
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s][A
+Loading weights:   4%|▍         | 16/398 [00:01<00:46,  8.28it/s][A
+Loading weights:   8%|▊         | 30/398 [00:02<00:33, 11.08it/s][A
+Loading weights:  10%|▉         | 39/398 [00:03<00:32, 11.17it/s][A
+Loading weights:  13%|█▎        | 51/398 [00:04<00:26, 13.02it/s][A
+Loading weights:  16%|█▌        | 63/398 [00:04<00:20, 16.14it/s][A
+Loading weights:  18%|█▊        | 73/398 [00:05<00:16, 19.64it/s][A
+Loading weights:  20%|█▉        | 78/398 [00:05<00:17, 18.68it/s][A
+Loading weights:  25%|██▌       | 100/398 [00:05<00:08, 34.95it/s][A
+Loading weights:  29%|██▉       | 115/398 [00:05<00:06, 47.12it/s][A
+Loading weights:  31%|███▏      | 125/398 [00:07<00:18, 14.54it/s][A
+Loading weights:  33%|███▎      | 132/398 [00:10<00:33,  7.97it/s][A
+Loading weights:  34%|███▍      | 137/398 [00:11<00:34,  7.48it/s][A
+Loading weights:  38%|███▊      | 150/398 [00:12<00:32,  7.67it/s][A
+Loading weights:  39%|███▉      | 157/398 [00:14<00:36,  6.64it/s][A
+Loading weights:  43%|████▎     | 172/398 [00:15<00:27,  8.09it/s][A
+Loading weights:  44%|████▍     | 177/398 [00:16<00:27,  7.95it/s][A
+Loading weights:  46%|████▌     | 183/398 [00:16<00:26,  8.01it/s][A
+Loading weights:  54%|█████▍    | 215/398 [00:17<00:11, 16.41it/s][A
+Loading weights:  58%|█████▊    | 231/398 [00:18<00:09, 17.38it/s][A
+Loading weights:  62%|██████▏   | 247/398 [00:19<00:10, 14.93it/s][A
+Loading weights:  66%|██████▌   | 261/398 [00:21<00:11, 11.46it/s][A
+Loading weights:  67%|██████▋   | 268/398 [00:23<00:14,  9.16it/s][A
+Loading weights:  71%|███████   | 281/398 [00:24<00:12,  9.46it/s][A
+Loading weights:  73%|███████▎  | 292/398 [00:25<00:10,  9.70it/s][A
+Loading weights:  76%|███████▌  | 303/398 [00:26<00:09, 10.25it/s][A
+Loading weights:  79%|███████▉  | 316/398 [00:27<00:06, 11.82it/s][A
+Loading weights:  81%|████████▏ | 324/398 [00:27<00:06, 12.23it/s][ALoading weights: 100%|██████████| 398/398 [00:27<00:00, 14.22it/s]
+Loading pipeline components...:  60%|██████    | 3/5 [00:33<00:28, 14.36s/it]Loading pipeline components...: 100%|██████████| 5/5 [00:33<00:00,  6.44s/it]Loading pipeline components...: 100%|██████████| 5/5 [00:33<00:00,  6.76s/it]
+  0%|          | 0/4 [00:00<?, ?it/s] 25%|██▌       | 1/4 [00:01<00:03,  1.01s/it] 75%|███████▌  | 3/4 [00:01<00:00,  2.85it/s]100%|██████████| 4/4 [00:01<00:00,  3.32it/s]100%|██████████| 4/4 [00:01<00:00,  2.75it/s]
+/home1/illyhoan/arc/augment/data/plates/fight2/plate_color_3.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.27it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.37it/s]100%|██████████| 4/4 [00:00<00:00,  5.71it/s]100%|██████████| 4/4 [00:00<00:00,  6.11it/s]
+/home1/illyhoan/arc/augment/data/plates/fight3/plate_color_3.png
+/home1/illyhoan/arc/augment/data/plates/fight4/plate_color_3.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.30it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.39it/s]100%|██████████| 4/4 [00:00<00:00,  5.70it/s]100%|██████████| 4/4 [00:00<00:00,  6.11it/s]
+/home1/illyhoan/arc/augment/data/plates/fight5/plate_color_3.png
+fight1: 9 coloured cut-outs -> /home1/illyhoan/arc/augment/data/sprites/cutouts/fight1
+fight2: 18 coloured cut-outs -> /home1/illyhoan/arc/augment/data/sprites/cutouts/fight2
+fight3: 18 coloured cut-outs -> /home1/illyhoan/arc/augment/data/sprites/cutouts/fight3
+fight4: 18 coloured cut-outs -> /home1/illyhoan/arc/augment/data/sprites/cutouts/fight4
+fight5: 18 coloured cut-outs -> /home1/illyhoan/arc/augment/data/sprites/cutouts/fight5
+7 images from 42 -> /home1/illyhoan/arc/augment/out/smoke
+7 images from 35 -> /home1/illyhoan/arc/augment/out/smoke
+7 images from 7 -> /home1/illyhoan/arc/augment/out/smoke
+7 images from 28 -> /home1/illyhoan/arc/augment/out/smoke
+7 images from 21 -> /home1/illyhoan/arc/augment/out/smoke
+7 images from 0 -> /home1/illyhoan/arc/augment/out/smoke
+7 images from 14 -> /home1/illyhoan/arc/augment/out/smoke
+7 images from 49 -> /home1/illyhoan/arc/augment/out/smoke
+{
+ "run": "smoke",
+ "verdict": "MARGINAL",
+ "failed": [],
+ "warnings": [
+  "plate fight2/plate_color_3.png: paint overlap 0.31, colour off by {'red': 5.1, 'yellow': 7.2, 'blue': 1.4, 'floor': 4.1}",
+  "plate fight3/plate_color_3.png: paint overlap 0.32, colour off by {'red': 1.0, 'yellow': 12.1, 'blue': 1.0, 'floor': 3.0}",
+  "plate fight5/plate_color_3.png: paint overlap 0.32, colour off by {'red': 1.4, 'yellow': 12.1, 'blue': 1.0, 'floor': 3.0}"
+ ],
+ "images": 56,
+ "kinds": {
+  "two": 0.821,
+  "one": 0.071,
+  "empty": 0.107
+ },
+ "two_robot_images_with_boxes_touching": 0.5,
+ "label_errors": [],
+ "loads_in_ultralytics": {
+  "colour": true,
+  "grey": true
+ },
+ "plates": [
+  {
+   "plate": "fight2/plate_color_3.png",
+   "paint_iou": 0.31,
+   "colour_off": {
+    "red": 5.1,
+    "yellow": 7.2,
+    "blue": 1.4,
+    "floor": 4.1
+   },
+   "ok": false
+  },
+  {
+   "plate": "fight3/plate_color_3.png",
+   "paint_iou": 0.32,
+   "colour_off": {
+    "red": 1.0,
+    "yellow": 12.1,
+    "blue": 1.0,
+    "floor": 3.0
+   },
+   "ok": false
+  },
+  {
+   "plate": "fight4/plate_color_3.png",
+   "paint_iou": 1.0,
+   "colour_off": {
+    "red": 1.0,
+    "yellow": 4.2,
+    "blue": 2.8,
+    "floor": 1.0
+   },
+   "ok": true
+  },
+  {
+   "plate": "fight5/plate_color_3.png",
+   "paint_iou": 0.32,
+   "colour_off": {
+    "red": 1.4,
+    "yellow": 12.1,
+    "blue": 1.0,
+    "floor": 3.0
+   },
+   "ok": false
+  }
+ ],
+ "width_against_real": 0.89,
+ "floor_coverage": 0.72,
+ "near_duplicates": 0,
+ "robots_by_source": {
+  "chopper-or-overkill:livery": 9,
+  "hypershock:livery": 16,
+  "kraken:livery": 11,
+  "mammoth:livery": 9,
+  "mesh:gigabyte": 9,
+  "nightmare:livery": 10,
+  "slot-machine:livery": 6,
+  "tazbot:livery": 14,
+  "whiplash:livery": 6,
+  "witch-doctor:livery": 6
+ },
+ "detector_as_provided": {
+  "images": 56,
+  "robots": 96,
+  "found": 40,
+  "extra_boxes": 16,
+  "recall": 0.42,
+  "recall_by_robot": {
+   "chopper-or-overkill": 0.11,
+   "gigabyte": 0.33,
+   "hypershock": 0.44,
+   "kraken": 0.64,
+   "mammoth": 0.11,
+   "nightmare": 0.2,
+   "slot-machine": 0.67,
+   "tazbot": 0.57,
+   "whiplash": 0.5,
+   "witch-doctor": 0.67
+  }
+ }
+}
+done; images and report under /home1/illyhoan/arc/augment/out/smoke
