@@ -35,6 +35,11 @@ _klein = None
 # which start square is red or that the centre logo is painted at all.
 REFERENCE = AUGMENT / "data" / "refs" / "arena_broadcast_1.jpg"
 REFERENCE_SIZE = (768, 272)
+# A robot waits on each start square in the screenshot. The 4-bit build left
+# them there; the full model copied both onto the plates. Each is covered
+# with its square's colour before the model sees the picture.
+# (x0, y0, x1, y1) in the screenshot, each well inside its square.
+REFERENCE_ROBOTS = ((330, 232, 495, 322), (1538, 245, 1722, 352))
 # klein wants multiples of 16. The plate is 1440x762; colour is low-frequency,
 # so it is generated small and scaled up, and detail comes from the real plate.
 # One reference at this size takes about 3 minutes here and peaks at 12.3 GB
@@ -67,6 +72,11 @@ DETAIL = 15.0
 # much duller: red (27, 28), blue (0, -10). Fights happen under these lights.
 PAINT = {"red": ((345, 70), (51, 39)), "yellow": ((75, 125), (-2, 47)), "blue": ((180, 300), (-7, -29))}
 FLOOR = (3, -5)
+# Paint is strong colour that is also far from the floor's own colour. The
+# full model paints the whole floor navy; judged on strength alone, that floor
+# counted as blue paint, outweighed the two blue squares, and all three were
+# scaled up together.
+PAINT_CHROMA = 12
 # The model also tints what lies outside the floor: one run turned the whole
 # left wall bright red. Out there colour is kept faint.
 OUTSIDE = 0.25
@@ -120,21 +130,24 @@ def generate(images, prompt, size, seed, out):
            generator=torch.Generator("cuda").manual_seed(seed)).images[0].save(out)
 
 
-def repaint(ab):
-    chroma = np.hypot(ab[:, :, 0], ab[:, :, 1])
+def repaint(ab, arena):
+    cast = np.median(ab[arena], 0)   # the floor is most of the arena
+    off = np.hypot(ab[:, :, 0] - cast[0], ab[:, :, 1] - cast[1])
+    strong = np.minimum(off, np.hypot(ab[:, :, 0], ab[:, :, 1]))
     hue = np.degrees(np.arctan2(ab[:, :, 1], ab[:, :, 0])) % 360
-    bare = chroma < 8
-    out = ab + (np.float32(FLOOR) - np.median(ab[bare], 0)) * np.clip(1 - chroma / 12, 0, 1)[:, :, None]
+    out = ab + (np.float32(FLOOR) - cast) * np.clip(2 - 2 * off / PAINT_CHROMA, 0, 1)[:, :, None]
     for (low, high), target in PAINT.values():
         inside = ((hue - low) % 360) <= ((high - low) % 360)
-        sure = inside & (chroma > 12)
+        # measured on the floor only: the full model paints the bumpers a
+        # stronger yellow than the slot outlines, and the target is the floor's
+        sure = inside & (strong > PAINT_CHROMA) & arena
         if sure.sum() < 500:
             continue
         now = np.median(ab[sure], 0)
         turn = np.arctan2(target[1], target[0]) - np.arctan2(now[1], now[0])
         grow = np.hypot(*target) / np.hypot(*now)
         spin = np.float32([[np.cos(turn), -np.sin(turn)], [np.sin(turn), np.cos(turn)]]) * grow
-        weight = cv2.GaussianBlur((inside & (chroma > 8)).astype(np.float32), (0, 0), 1.5)[:, :, None]
+        weight = cv2.GaussianBlur((inside & (strong > PAINT_CHROMA * 2 / 3)).astype(np.float32), (0, 0), 1.5)[:, :, None]
         out = out * (1 - weight) + (ab @ spin.T) * weight
     return out
 
@@ -149,10 +162,26 @@ def relight(gray, generated):
     real = real.astype(np.float32)
     lab[:, :, 0] = np.clip(real + 0.5 * (cv2.GaussianBlur(lab[:, :, 0], (0, 0), DETAIL)
                                          - cv2.GaussianBlur(real, (0, 0), DETAIL)), 0, 255)
-    inside = cv2.GaussianBlur(arena_mask(gray).astype(np.float32) / 255, (0, 0), 12.0)
-    ab = repaint(cv2.GaussianBlur(lab[:, :, 1:], (0, 0), 2.0) - 128)
+    arena = arena_mask(gray)
+    inside = cv2.GaussianBlur(arena.astype(np.float32) / 255, (0, 0), 12.0)
+    ab = repaint(cv2.GaussianBlur(lab[:, :, 1:], (0, 0), 2.0) - 128, arena > 0)
     lab[:, :, 1:] = 128 + ab * (OUTSIDE + (1 - OUTSIDE) * inside)[:, :, None]
     return cv2.cvtColor(lab.astype(np.uint8), cv2.COLOR_LAB2BGR)
+
+
+def empty_reference():
+    reference = cv2.imread(str(REFERENCE))
+    for x0, y0, x1, y1 in REFERENCE_ROBOTS:
+        # A square shades smoothly from side to side and toward the camera, so
+        # a flat cover shows as a rectangle. The cover is a plane fitted to
+        # the square just above and below the robot.
+        ys, xs = np.mgrid[y0 - 12:y1 + 12, x0:x1]
+        near = reference[y0 - 12:y1 + 12, x0:x1].astype(np.float32)
+        ring = (ys < y0) | (ys >= y1)
+        ring &= np.abs(near - np.median(near[ring], 0)).sum(2) < 80   # not a bumper or a scuff
+        plane = np.linalg.lstsq(np.c_[xs[ring], ys[ring], np.ones(ring.sum())], near[ring], rcond=None)[0]
+        reference[y0:y1, x0:x1] = np.clip(np.dstack([xs, ys, np.ones_like(xs)]) @ plane, 0, 255)[12:-12]
+    return reference
 
 
 def plate(clip, seed):
@@ -163,7 +192,7 @@ def plate(clip, seed):
                 cv2.cvtColor(cv2.resize(gray, MODEL_SIZE, interpolation=cv2.INTER_AREA),
                              cv2.COLOR_GRAY2BGR))
     cv2.imwrite(str(out / "reference.jpg"),
-                cv2.resize(cv2.imread(str(REFERENCE)), REFERENCE_SIZE, interpolation=cv2.INTER_AREA))
+                cv2.resize(empty_reference(), REFERENCE_SIZE, interpolation=cv2.INTER_AREA))
     generate([out / "input.png", out / "reference.jpg"], PLATE_PROMPT, MODEL_SIZE, seed,
              out / f"generated_{seed}.png")
     cv2.imwrite(str(out / f"plate_color_{seed}.png"),
@@ -201,7 +230,14 @@ def cutouts(clip, sheets, seed):
                 sheet[cy:cy + h, cx:cx + w] = small
                 placed.append((c, crop, mask, (cx, cy, w, h)))
             name = f"{robot}_{seed}_{n}"
-            cv2.imwrite(str(out / f"{name}.png"), cv2.cvtColor(sheet, cv2.COLOR_GRAY2BGR))
+            sheet = cv2.cvtColor(sheet, cv2.COLOR_GRAY2BGR)
+            # A coloured sheet is only good for the grey sheet it was painted
+            # from. --sheets 1 spreads its nine over all of a robot's cut-outs,
+            # so its sheet 0 is not a full run's sheet 0; reusing it would put
+            # one cut-out's colours on another.
+            if (out / f"{name}.png").exists() and not np.array_equal(cv2.imread(str(out / f"{name}.png")), sheet):
+                (out / f"{name}_color.png").unlink(missing_ok=True)
+            cv2.imwrite(str(out / f"{name}.png"), sheet)
             prompt = INVENTED_PROMPT if invented else LIVERY_PROMPT.format(livery=robots.LIVERY[robot])
             generate([out / f"{name}.png"], prompt, (CELL * GRID, CELL * GRID), seed + n,
                      out / f"{name}_color.png")

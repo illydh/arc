@@ -26,13 +26,15 @@ mlx/                 requirements.txt + .venv for the Mac-only image model runti
 out/<run>/           compose.py and augment_report.py output -- git-ignored:
   colour/ grey/        each images/, labels/, data.yaml: ready to train on
   manifest_*.json      what is in every image, one part per compose process
-  report/              report.json, sheet_*.jpg, plates.jpg
+  report/              report.json, sheet_*.jpg, plates.jpg; from a CARC job also
+                       cutouts/ and plates/, what the model painted
 data/               git-ignored:
   detector/           finetune_color.pt, the detector to improve
   meshes/             Meshy AI meshes of Nemesis and Gigabyte
   weights/            sam2.1_s.pt, a symlink to the SAM 2.1 checkpoint in the Hugging Face cache
   refs/               broadcast screenshots of the arena from above, the colour reference
-  plates/<clip>/      colorize.py output: generated_<seed>.png, plate_color_<seed>.png
+  plates/<clip>/      colorize.py output: generated_<seed>.png, plate_color_<seed>.png;
+                      rejected_plate_color_<seed>.png is one the gate set aside
   sprites/<robot>/    compose.py's bank of mesh renders, rebuilt when its settings change
   sprites/cutouts/<clip>/  colorize.py output: <robot>_<seed>_<n>.png sheets, their _color.png,
                       one sprite per cut-out, index.json
@@ -97,6 +99,7 @@ The outline model is SAM 2.1 through Ultralytics, so there is no separate
 augment/.venv/bin/python augment/scripts/colorize.py plate <clip>... [--seeds N...]
 augment/.venv/bin/python augment/scripts/colorize.py cutouts <clip>... [--sheets N]
 augment/.venv/bin/python augment/scripts/compose.py <run> [-n 12] [--seed 0] [--start 0]
+augment/.venv/bin/python augment/scripts/augment_report.py gate
 augment/.venv/bin/python augment/scripts/augment_report.py augment/out/<run>
 ```
 `colorize.py` calls the image model: mflux from `augment/mlx/.venv` on this
@@ -104,14 +107,22 @@ Mac (build it from `augment/mlx/requirements.txt`), diffusers on a CUDA
 machine. On the Mac each model run takes about 3 minutes and 12 GB of memory,
 so run one at a time; `--sheets 1` colours one sheet of nine per robot. A
 picture already generated is not generated again: delete it to have it redone.
+The one exception is a cut-out sheet whose grey sheet has changed (another
+`--sheets` value puts other cut-outs on it), which is painted again.
 Look at a result before using it. The model invents colour unless the prompt
 says what stays grey, and it drifts from a livery it is told (it painted
-Mammoth red until told "no red").
+Mammoth red until told "no red"). The full model on CARC also copies what is
+in the reference picture, robots included, and paints the floor navy: do not
+take a plate from one build as proof for the other.
 
 `compose.py` draws on every `plate_color_*.png` and every coloured cut-out
 there is, so what `colorize.py` has made decides what a run looks like.
 `--start` numbers the first image, so several processes can fill one run.
 `augment_report.py` reads the whole run; its thresholds are fixed at the top.
+`augment_report.py gate` runs the plate checks on every coloured plate and
+renames a failing one `rejected_plate_color_<seed>.png`, so `compose.py`
+leaves it alone. Run it after `colorize.py plate` and before `compose.py`;
+the CARC job does.
 
 Robot identities are in `scripts/robots.py`: the rule that splits each clip's
 two robots, the frames where that rule was wrong (`SWAPPED`, `UNNAMED`), the

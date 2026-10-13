@@ -93,6 +93,10 @@ What follows from it:
   camera, under fight lighting, and is the reference `colorize.py` uses. The
   second is a corner view. Used as a colour reference only; they stay out of
   git and out of the generated set.
+- **A robot waits on each start square in the first one**: a blue one on the
+  red square, a yellow and black one on the blue. `colorize.empty_reference`
+  covers both with their square's colour before the model sees the picture
+  (see CARC smoke run). The file itself is left as supplied.
 - What the first one shows: red start square on the left, blue on the right;
   the centre logo is a red B panel and a blue B panel over white lettering;
   dark charcoal floor; yellow slot outlines; yellow and black bumpers.
@@ -228,6 +232,10 @@ for RGBTrack 6D pose testing.
   2.5 hours on the Mac. `mds/carc.md` is the procedure.
 - Bulk generation and detector training run on USC CARC. All bulk images come
   from one model, whatever the Mac trial uses.
+- **The full run goes up without a second smoke test** (user, 2026-10-12).
+  The job checks every plate itself and sets a failing one aside before
+  composing (`augment_report.py gate`). Making the set on the Mac instead was
+  offered and not chosen.
 - Proof test: one whole fight held out, chosen before any training. Arms, three
   seeds each: detector as is; fine-tuned on real frames only; real plus plain
   composites with no generative step; real plus generated. GO if generated
@@ -436,6 +444,11 @@ Nemesis in it, grey cut-outs and the model's raw colours.
   to the measured hue and scaled to the measured strength. Result on the
   plate against the targets above: red square (+51, +40), left B (+53, +41),
   blue square (-7, -35), right B (-14, -31), floor (+2, -5).
+- **Paint is strong colour that is also far from the floor's own colour**
+  (since 2026-10-05). The floor's colour is the median over the arena,
+  whatever cast the model gave it, and is moved to the measured floor colour.
+  Each paint is measured on floor pixels only: the full model paints the
+  bumpers a stronger yellow than the slot outlines.
 - **Colour outside the arena is kept faint.** One run turned the whole left
   wall bright red.
 - **Detail comes from the real plate.** The model's picture is a clean,
@@ -577,18 +590,139 @@ is the robot it also missed in the real fight2 frames. It is not evidence that
 training on these images helps.
 
 ### Not verified
-- No job has run on CARC. The CUDA branch of `colorize.generate` has never
-  executed, and neither has `generate.job`.
-- `setup_env.sh` has not run to the end. Its one run (2026-10-04) reached the
-  final import check, so the install and the model download had finished, and
-  stopped there on the login node's process limit (see Environment). The
-  script now caps its threads; not run again since.
-- `stage.sh` and `fetch.sh` have not talked to CARC. The upload's file list
-  and rsync flags were rehearsed into a local folder.
-- Only fight4 has a coloured plate, so the plate check has only been
-  exercised on the approved plate and on two known-bad ones.
-- The invented-paint branch (every fifth sheet) did not run in the Mac check,
-  which made one sheet per robot.
+- `stage.sh` and `fetch.sh` are not known to have talked to CARC: the user
+  moved the inputs and results themselves. The upload's file list and rsync
+  flags were rehearsed into a local folder.
+- No plate from the full model has passed (see CARC smoke run). The plate
+  check has passed only plates from the Mac's 4-bit build.
+- The covered reference has not been through the full model.
+- The invented-paint branch (every fifth sheet) has run once, on the Mac's
+  build and one robot (see One visit instead of two). Never on the full model.
+- The gate has only seen plates from the smoke run and the Mac. How many of
+  the full run's twelve pass is not known.
+
+## CARC smoke run (2026-10-05)
+`RUN=smoke,N=50,SHEETS=1,SEEDS=3`, job 12658940, one A100. Output:
+`augment/out/smoke/` (56 images), log `logs/augment-12658940.out`.
+
+**The job runs end to end on CARC.** The environment imports, the model loads
+from the scratch cache with the hub offline, the CUDA branch of
+`colorize.generate` works, eight compose processes fill one run, and the
+report grades it. No label errors; both folders load in Ultralytics; mix
+0.82 / 0.07 / 0.11; box width against real 0.89; no near-duplicates.
+
+**Verdict MARGINAL, and the set is not usable: three of the four plates are
+wrong, and 45 of the 56 images sit on them.** Only fight4's plate is right,
+and it is the one made on the Mac and copied up.
+
+| Plate | Made by | Paint overlap (bar 0.5) | Centre floor (a, b), target (+3, -5) |
+|---|---|---|---|
+| fight2 seed 3 | CARC, full model | 0.31 | (-8, -30) |
+| fight3 seed 3 | CARC, full model | 0.32 | (-8, -30) |
+| fight4 seed 3 | Mac, 4-bit build | 1.0 | (+2, -5) |
+| fight5 seed 3 | CARC, full model | 0.32 | (-8, -30) |
+
+Two separate faults, both on the CARC plates only:
+- **Blue floor.** The lit part of the floor sits exactly on the blue paint's
+  target colour, and the blue squares are pushed to a neon cyan. So
+  `colorize.repaint` took the floor for blue paint: it calibrates on the median
+  of everything bluish, and a large faintly blue floor outweighs two small
+  squares. How blue the model's own floor was is not known: the raw
+  `generated_3.png` files stayed on CARC.
+- **Phantom robots on the start squares.** The broadcast screenshot has a
+  robot waiting on each square, a blue one on the red square and a yellow and
+  black one on the blue. The full model copied both across as coloured blobs.
+  The real plates are empty there. Every image on those plates therefore holds
+  two unlabelled robot-like objects. The report has no check for this; it
+  failed these plates on the floor alone.
+- The 4-bit build did neither on fight4 seed 3. One plate is no proof that it
+  never would.
+
+**Cut-out sheets from the full model are right on all nine robots**, and
+sharper and more saturated than the Mac's. Drift: Nightmare's frame is maroon
+on about five of nine, HyperShock has large red areas on two of nine, and the
+Slot Machine got red wheel hubs.
+
+The detector as provided finds 40 of 96 robots (0.42) and adds 16 boxes.
+Reported, not judged.
+
+### The fix (2026-10-05, on the Mac)
+The three raw pictures were brought down
+(`out/smoke/report/plates/<clip>_generated_3.png`). The model's own floor in
+them is navy, (a, b) about (-1, -14), on every plate; the 4-bit build's was
+(0, -2). The old correction then doubled it. Rebuilding the smoke run's plates
+from these pictures with the old code reproduces the report's numbers exactly.
+
+- **`colorize.repaint` tells paint from floor by distance from the floor's own
+  colour**, and measures each paint on floor pixels only. A first version that
+  used distance alone counted every neutral pixel (walls, the white lettering)
+  as paint once the floor was navy; paint has to be strong as well.
+- **`colorize.empty_reference` covers the two robots** in the screenshot with
+  a colour gradient fitted to the square around each. A flat fill showed as a
+  rectangle, and OpenCV's inpainting left blotches.
+- **`augment_report.py` checks the start squares**: the share of each square's
+  outline that is not its own colour (`SQUARE_GAPS = 0.09`). Empty squares
+  measure 0.04 to 0.06; squares with a copied robot 0.13 to 0.19.
+- **`generate.job` copies the model's raw plate pictures** to
+  `report/plates/`, so a fetch brings them back.
+
+The same four raw pictures through the new correction:
+
+| Plate | Paint overlap | Floor (a, b) | Worst paint, off by | Start squares | Passes |
+|---|---|---|---|---|---|
+| fight2 seed 3, CARC | 0.68 | (+2, -6) | red 5.8 | red 0.17, blue 0.05 | No: robot on the red square |
+| fight3 seed 3, CARC | 0.73 | (+2, -6) | yellow 6.3 | 0.13, 0.19 | No: a robot on each |
+| fight4 seed 3, Mac | 1.0 | (+2, -6) | yellow 3.2 | 0.04, 0.06 | Yes |
+| fight5 seed 3, CARC | 0.75 | (+2, -6) | yellow 6.3 | 0.13, 0.18 | No: a robot on each |
+
+- The floor and every paint are now right on all four. fight4's approved plate
+  moved by 0.7 grey levels on average and was looked at again.
+- The three CARC plates still fail, now only on the new check: the robots are
+  in the model's pictures and go only when CARC colours those plates again
+  from the covered reference.
+- **The covered reference has only been through the 4-bit build**: fight3
+  seed 3 on the Mac, squares empty, plate passes (overlap 0.85, squares 0.05
+  and 0.06). That shows the covered picture still works as a reference. It
+  does not show what the full model does with it; the second smoke run does.
+
+### One visit instead of two (2026-10-12)
+A second smoke test would only have looked at the plates. The plate checks
+now run inside the job, so the full run is submitted directly.
+
+- **The gate.** `augment_report.py gate` runs `check_plate` on every
+  `plate_color_*.png` and renames a failing one
+  `rejected_plate_color_<seed>.png`. `compose.py` picks plates up by the
+  pattern `plate_color_*.png`, so it never sees one. `generate.job` calls the
+  gate between colouring and composing.
+- **Tested on the Mac** on plates rebuilt from the smoke run's three raw
+  pictures plus the approved plate: the three are set aside (red-square gaps
+  0.17, 0.13, 0.13), the approved one stays, a second pass changes nothing,
+  and `compose.stage` then offers only fight4's plate.
+- **The report lists what was set aside** (`plates_set_aside`, with each
+  plate's numbers) and warns when a run of 500 images or more is composed on
+  fewer than six plates (`PLATES_MIN`). A full run colours twelve.
+- **The invented-paint branch has now run once**, on the Mac's 4-bit build:
+  one sheet of nine Kraken cut-outs with `INVENTED_EVERY` set to 1, written
+  to a scratch folder. Nine sprites and an index, every entry
+  `"paint": "invented"`. By the numbers the nine got different paint (red,
+  orange, yellow-green, green, purple and four left unpainted) and the
+  background stayed grey. Looked at by numbers only; the sheet is
+  `out/invented-test/sheet.jpg` (grey input, painted sheet, sprites).
+- **A full run colours 41 cut-out sheets**, four of them in invented paint
+  (the fifth sheet of HyperShock, Witch Doctor, Slot Machine and Nightmare).
+- **The smoke run's nine sheets must not be reused, and no longer are**
+  (found 2026-10-13, before the full run). `--sheets 1` spreads its nine over
+  all of a robot's cut-outs, so its sheet 0 holds other cut-outs than a full
+  run's sheet 0 under the same file name. `generate` skipped the existing
+  coloured sheet, which would have put one cut-out's colours on another for
+  81 of the 325 cut-outs. `colorize.cutouts` now deletes a coloured sheet
+  whose grey sheet has changed. Tested with a stand-in for the model: a
+  smoke-style run then a full run repaints sheet 0, every coloured sheet
+  matches its grey sheet, and a second full run paints nothing.
+
+Before the full run, the three bad raw pictures have to be deleted on CARC,
+or they are reused and set aside again (`carc.md`, step 5). No plate from the
+full model has passed yet; the gate is what stands between that and the set.
 
 ## Steps
 Done so far: vault documentation, inputs checked, scaffold, real material
@@ -604,8 +738,8 @@ Current plan (approved 2026-10-04): a bulk `non-nemesis` set on CARC.
 | 1 | Documentation: class order, robot identities, this plan | Mac | Done 2026-10-04 |
 | 2 | Record robot identities as data; make the code CARC-ready | Mac | Done 2026-10-04: see Livery colouring and the bulk composer. Not run on CARC |
 | 3 | Commit and push `augment/`; copy inputs to CARC | Mac, the user | Handed over 2026-10-04: exact commands in `carc.md`. The upload was rehearsed locally (392 files, 80 MB) |
-| 4 | CARC setup and smoke run: every plate, one cut-out sheet per robot, 50 images | CARC, the user | Handed over 2026-10-04. Setup stopped at its import check on the login node's process limit; fixed in the script, to be run again |
-| 5 | Full run, about 3,000 images, graded by `augment_report.py` | CARC, the user | Handed over 2026-10-04; to follow a look at the smoke run's plates and cut-out sheets |
+| 4 | CARC setup and smoke run: every plate, one cut-out sheet per robot, 50 images | CARC, the user | Run 2026-10-05, verdict MARGINAL: the job works, the cut-outs are right, three of four plates were wrong. Fixed on the Mac the same day. No second smoke run: the job gates plates itself (2026-10-12). See CARC smoke run |
+| 5 | Full run, about 3,000 images, graded by `augment_report.py` | CARC, the user | Ready to submit (2026-10-12). Commands in `carc.md`, steps 1, 5 and 6 |
 
 What the full run is to produce:
 - About 3,000 images at 1440x762, each with a grey copy.

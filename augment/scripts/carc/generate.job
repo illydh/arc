@@ -47,6 +47,9 @@ python -c "import torch; assert torch.cuda.is_available(), 'no GPU visible'; pri
 # approved by eye on the Mac and copied up -- is used as it is.
 # shellcheck disable=SC2086
 python augment/scripts/colorize.py plate fight2 fight3 fight4 fight5 --seeds $SEEDS
+# A plate that fails the report's plate checks is renamed here, so nothing is
+# composed on it and the run needs no smoke test first to look at the plates.
+python augment/scripts/augment_report.py gate
 python augment/scripts/colorize.py cutouts fight1 fight2 fight3 fight4 fight5 --sheets "$SHEETS" --seeds 7
 
 # Composing is CPU work, one process per core. The mesh renders are made
@@ -64,7 +67,12 @@ python augment/scripts/augment_report.py "augment/out/$RUN"
 
 # The coloured cut-out sheets go beside the report, so that fetching the run
 # is enough to look at what the model painted.
-mkdir -p "augment/out/$RUN/report/cutouts"
+mkdir -p "augment/out/$RUN/report/cutouts" "augment/out/$RUN/report/plates"
 cp augment/data/sprites/cutouts/*/*_color.png "augment/out/$RUN/report/cutouts/"
+# So do the plates as the model painted them, before the colour correction: a
+# wrong plate cannot be traced from the corrected one alone.
+for f in augment/data/plates/*/generated_*.png; do
+  cp "$f" "augment/out/$RUN/report/plates/$(basename "$(dirname "$f")")_$(basename "$f")"
+done
 
 echo "done; images and report under $REPO/augment/out/$RUN"

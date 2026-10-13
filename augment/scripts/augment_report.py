@@ -25,6 +25,13 @@ PAINTED = 14            # CIELAB chroma above which a floor pixel counts as pain
 PLATE_REACH = 17        # px; the camera sits this far apart between fights
 PLATE_PAINT_IOU = 0.5   # paint in the same places as the approved plate
 PLATE_COLOUR_TOL = 12   # CIELAB (a, b) distance from the broadcast paint
+# Share of a start square that is not its own colour. Empty squares measured
+# 0.04 to 0.06; with a robot copied onto them from the reference, 0.13 to 0.18.
+SQUARE_GAPS = 0.09
+# A full run colours 12 plates. Those that fail the checks are set aside by
+# `gate`; with fewer than this left, the set leans on too few backgrounds.
+PLATES_MIN = 6
+SET_ASIDE = "rejected_"
 MIX_TOL = 0.04          # share of two-robot / one-robot / empty images
 SIZE_RATIO = (0.6, 1.6)  # median box width against a real robot's at the same row
 GRID = (6, 3)
@@ -40,6 +47,24 @@ def painted(plate, arena):
     return ab, (np.hypot(ab[:, :, 0], ab[:, :, 1]) > PAINTED) & (arena > 0)
 
 
+def square_gaps(of):
+    """An empty start square is solid paint. The full model copied the robots
+    waiting on the squares in the reference picture onto the plates, where
+    each is a gap in its square."""
+    gaps = {}
+    for name, end in (("red", np.argmin), ("blue", np.argmax)):   # red square far left, blue far right
+        n, ids, stats, centres = cv2.connectedComponentsWithStats(of[name].astype(np.uint8))
+        big = [i for i in range(1, n) if stats[i, cv2.CC_STAT_AREA] > 5000]
+        if not big:
+            gaps[name] = None
+            continue
+        square = (ids == big[end([centres[i][0] for i in big])]).astype(np.uint8)
+        outline = cv2.findContours(square, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0][0]
+        hull = cv2.fillConvexPoly(np.zeros_like(square), cv2.convexHull(outline), 1)
+        gaps[name] = round(1 - float(square.sum() / hull.sum()), 3)
+    return gaps
+
+
 def check_plate(path, approved):
     plate = cv2.imread(str(path))
     arena = arena_mask(cv2.imread(str(compose.REAL / path.parent.name / "plate.png"), cv2.IMREAD_GRAYSCALE))
@@ -47,14 +72,35 @@ def check_plate(path, approved):
     grow = np.ones((PLATE_REACH, PLATE_REACH), np.uint8)
     a, b = (cv2.dilate(m.astype(np.uint8), grow) > 0 for m in (paint, approved))
     hue = np.degrees(np.arctan2(ab[:, :, 1], ab[:, :, 0])) % 360
-    off = {}
-    for name, ((low, high), target) in colorize.PAINT.items():
-        m = paint & (((hue - low) % 360) <= ((high - low) % 360))
-        off[name] = round(float(np.hypot(*(np.median(ab[m], 0) - target))), 1) if m.sum() > 500 else None
+    of = {name: paint & (((hue - low) % 360) <= ((high - low) % 360))
+          for name, ((low, high), _) in colorize.PAINT.items()}
+    off = {name: round(float(np.hypot(*(np.median(ab[m], 0) - colorize.PAINT[name][1]))), 1) if m.sum() > 500 else None
+           for name, m in of.items()}
     off["floor"] = round(float(np.hypot(*(np.median(ab[(arena > 0) & ~paint], 0) - colorize.FLOOR))), 1)
     iou = round(float((a & b).sum() / (a | b).sum()), 2)
-    ok = iou >= PLATE_PAINT_IOU and all(v is not None and v <= PLATE_COLOUR_TOL for v in off.values())
-    return {"plate": f"{path.parent.name}/{path.name}", "paint_iou": iou, "colour_off": off, "ok": bool(ok)}
+    gaps = square_gaps(of)
+    ok = (iou >= PLATE_PAINT_IOU and all(v is not None and v <= PLATE_COLOUR_TOL for v in off.values())
+          and all(v is not None and v <= SQUARE_GAPS for v in gaps.values()))
+    return {"plate": f"{path.parent.name}/{path.name}", "paint_iou": iou, "colour_off": off,
+            "square_gaps": gaps, "ok": bool(ok)}
+
+
+def approved_paint():
+    arena = arena_mask(cv2.imread(str(compose.REAL / "fight4" / "plate.png"), cv2.IMREAD_GRAYSCALE))
+    return arena, painted(cv2.imread(str(APPROVED_PLATE)), arena)[1]
+
+
+def gate():
+    """Set aside every coloured plate that fails the plate checks, before
+    anything is composed on it. compose.py picks plates up by name, so a
+    renamed one is simply not used. The full model's first plates had a blue
+    floor and robots copied onto the start squares (context.md)."""
+    approved = approved_paint()[1]
+    for path in sorted(compose.PLATES.glob("*/plate_color_*.png")):
+        result = check_plate(path, approved)
+        if not result["ok"]:
+            path.rename(path.with_name(SET_ASIDE + path.name))
+        print("kept     " if result["ok"] else "set aside", json.dumps(result))
 
 
 def label_errors(run, items):
@@ -163,13 +209,16 @@ def main(run):
         if abs(share - target[k]) > max(MIX_TOL, 3 * np.sqrt(target[k] * (1 - target[k]) / n)):
             soft.append(f"share of '{k}' images is {share:.2f}, target {target[k]:.2f}")
 
-    approved_arena = arena_mask(cv2.imread(str(compose.REAL / "fight4" / "plate.png"), cv2.IMREAD_GRAYSCALE))
-    approved = painted(cv2.imread(str(APPROVED_PLATE)), approved_arena)[1]
+    approved_arena, approved = approved_paint()
     used = sorted({(it["clip"], it["plate"]) for it in items})
     plates = [check_plate(compose.PLATES / clip / name, approved) for clip, name in used]
     for p in plates:
         if not p["ok"]:
-            soft.append(f"plate {p['plate']}: paint overlap {p['paint_iou']}, colour off by {p['colour_off']}")
+            soft.append(f"plate {p['plate']}: paint overlap {p['paint_iou']}, colour off by {p['colour_off']}, "
+                        f"gaps in the start squares {p['square_gaps']}")
+    set_aside = [check_plate(path, approved) for path in sorted(compose.PLATES.glob(f"*/{SET_ASIDE}plate_color_*.png"))]
+    if n >= 500 and len(used) < PLATES_MIN:
+        soft.append(f"only {len(used)} plates passed the checks ({len(set_aside)} set aside)")
     cv2.imwrite(str(out / "plates.jpg"), np.vstack([
         cv2.resize(cv2.imread(str(compose.PLATES / clip / name)), (720, 381)) for clip, name in used]),
         [cv2.IMWRITE_JPEG_QUALITY, 88])
@@ -207,6 +256,7 @@ def main(run):
               "kinds": {k: round(v, 3) for k, v in kinds.items()},
               "two_robot_images_with_boxes_touching": round(float(contact), 2),
               "label_errors": errors[:20], "loads_in_ultralytics": loads, "plates": plates,
+              "plates_set_aside": set_aside,
               "width_against_real": round(ratio, 2), "floor_coverage": round(coverage, 2),
               "near_duplicates": repeats, "robots_by_source": dict(sorted(sources.items())),
               "detector_as_provided": detector_recall(run, items)}
@@ -215,4 +265,7 @@ def main(run):
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]).resolve())
+    if sys.argv[1] == "gate":
+        gate()
+    else:
+        main(Path(sys.argv[1]).resolve())
