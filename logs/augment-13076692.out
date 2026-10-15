@@ -1,0 +1,392 @@
+Wed Oct 14 05:43:57 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.159.04             Driver Version: 580.159.04     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-PCIE-40GB          On  |   00000000:25:00.0 Off |                    0 |
+| N/A   36C    P0             35W /  250W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+gpu: NVIDIA A100-PCIE-40GB
+/home1/illyhoan/arc/augment/.venv/lib/python3.11/site-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
+  deprecate("torch_dtype", "1.0.0", _TORCH_DTYPE_DEPRECATION_MESSAGE)
+Couldn't connect to the Hub: Cannot reach https://huggingface.co/api/models/black-forest-labs/FLUX.2-klein-4B: offline mode is enabled. To disable it, please unset the `HF_HUB_OFFLINE` environment variable..
+Will try to load from local cache.
+Loading pipeline components...:   0%|          | 0/5 [00:00<?, ?it/s]Loading pipeline components...:  40%|████      | 2/5 [00:00<00:01,  2.84it/s]
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s][A
+Loading weights:   1%|          | 2/398 [00:01<04:34,  1.44it/s][A
+Loading weights:   1%|          | 3/398 [00:01<02:56,  2.23it/s][A
+Loading weights:   1%|          | 4/398 [00:02<04:24,  1.49it/s][A
+Loading weights:   3%|▎         | 10/398 [00:03<01:43,  3.74it/s][A
+Loading weights:   3%|▎         | 13/398 [00:04<01:42,  3.77it/s][A
+Loading weights:   4%|▍         | 17/398 [00:04<01:18,  4.85it/s][A
+Loading weights:  11%|█         | 44/398 [00:05<00:18, 18.76it/s][A
+Loading weights:  29%|██▉       | 116/398 [00:07<00:12, 22.87it/s][A
+Loading weights:  30%|██▉       | 119/398 [00:11<00:24, 11.29it/s][A
+Loading weights:  35%|███▍      | 138/398 [00:12<00:22, 11.57it/s][A
+Loading weights:  35%|███▌      | 140/398 [00:15<00:34,  7.43it/s][A
+Loading weights:  37%|███▋      | 148/398 [00:17<00:40,  6.17it/s][A
+Loading weights:  38%|███▊      | 150/398 [00:19<00:55,  4.48it/s][A
+Loading weights:  39%|███▉      | 155/398 [00:20<00:53,  4.57it/s][A
+Loading weights:  41%|████      | 164/398 [00:21<00:43,  5.36it/s][A
+Loading weights:  53%|█████▎    | 212/398 [00:22<00:12, 14.62it/s][A
+Loading weights:  57%|█████▋    | 226/398 [00:24<00:12, 14.01it/s][A
+Loading weights:  62%|██████▏   | 245/398 [00:26<00:12, 11.98it/s][A
+Loading weights:  64%|██████▍   | 256/398 [00:28<00:15,  9.39it/s][A
+Loading weights:  65%|██████▌   | 259/398 [00:29<00:19,  7.15it/s][A
+Loading weights:  70%|███████   | 279/398 [00:31<00:13,  8.59it/s][A
+Loading weights:  70%|███████   | 280/398 [00:33<00:19,  6.14it/s][A
+Loading weights:  71%|███████   | 281/398 [00:34<00:25,  4.58it/s][A
+Loading weights:  79%|███████▉  | 315/398 [00:36<00:08,  9.92it/s][A
+Loading weights:  81%|████████▏ | 324/398 [00:36<00:07, 10.33it/s][ALoading weights: 100%|██████████| 398/398 [00:37<00:00, 10.76it/s]
+Loading pipeline components...:  60%|██████    | 3/5 [00:43<00:36, 18.19s/it]Loading pipeline components...:  80%|████████  | 4/5 [00:44<00:11, 11.58s/it]Loading pipeline components...: 100%|██████████| 5/5 [00:48<00:00,  8.85s/it]Loading pipeline components...: 100%|██████████| 5/5 [00:48<00:00,  9.61s/it]
+  0%|          | 0/4 [00:00<?, ?it/s] 25%|██▌       | 1/4 [00:00<00:01,  2.66it/s] 75%|███████▌  | 3/4 [00:00<00:00,  5.30it/s]100%|██████████| 4/4 [00:00<00:00,  5.11it/s]100%|██████████| 4/4 [00:00<00:00,  4.81it/s]
+/home1/illyhoan/arc/augment/data/plates/fight2/plate_color_1.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.27it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.39it/s]100%|██████████| 4/4 [00:00<00:00,  5.71it/s]100%|██████████| 4/4 [00:00<00:00,  6.11it/s]
+/home1/illyhoan/arc/augment/data/plates/fight2/plate_color_2.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.30it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.40it/s]100%|██████████| 4/4 [00:00<00:00,  5.70it/s]100%|██████████| 4/4 [00:00<00:00,  6.11it/s]
+/home1/illyhoan/arc/augment/data/plates/fight2/plate_color_3.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.35it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.40it/s]100%|██████████| 4/4 [00:00<00:00,  5.73it/s]100%|██████████| 4/4 [00:00<00:00,  6.13it/s]
+/home1/illyhoan/arc/augment/data/plates/fight3/plate_color_1.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.34it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.40it/s]100%|██████████| 4/4 [00:00<00:00,  5.71it/s]100%|██████████| 4/4 [00:00<00:00,  6.12it/s]
+/home1/illyhoan/arc/augment/data/plates/fight3/plate_color_2.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.33it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.42it/s]100%|██████████| 4/4 [00:00<00:00,  5.72it/s]100%|██████████| 4/4 [00:00<00:00,  6.13it/s]
+/home1/illyhoan/arc/augment/data/plates/fight3/plate_color_3.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.31it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.38it/s]100%|██████████| 4/4 [00:00<00:00,  5.69it/s]100%|██████████| 4/4 [00:00<00:00,  6.10it/s]
+/home1/illyhoan/arc/augment/data/plates/fight4/plate_color_1.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.34it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.42it/s]100%|██████████| 4/4 [00:00<00:00,  5.71it/s]100%|██████████| 4/4 [00:00<00:00,  6.12it/s]
+/home1/illyhoan/arc/augment/data/plates/fight4/plate_color_2.png
+/home1/illyhoan/arc/augment/data/plates/fight4/plate_color_3.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.32it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.41it/s]100%|██████████| 4/4 [00:00<00:00,  5.72it/s]100%|██████████| 4/4 [00:00<00:00,  6.12it/s]
+/home1/illyhoan/arc/augment/data/plates/fight5/plate_color_1.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.32it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.39it/s]100%|██████████| 4/4 [00:00<00:00,  5.69it/s]100%|██████████| 4/4 [00:00<00:00,  6.10it/s]
+/home1/illyhoan/arc/augment/data/plates/fight5/plate_color_2.png
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  8.32it/s] 75%|███████▌  | 3/4 [00:00<00:00,  6.39it/s]100%|██████████| 4/4 [00:00<00:00,  5.71it/s]100%|██████████| 4/4 [00:00<00:00,  6.11it/s]
+/home1/illyhoan/arc/augment/data/plates/fight5/plate_color_3.png
+kept      {"plate": "fight2/plate_color_1.png", "paint_iou": 0.69, "colour_off": {"red": 3.6, "yellow": 2.2, "blue": 2.2, "floor": 1.4}, "square_gaps": {"red": 0.062, "blue": 0.048}, "ok": true}
+set aside {"plate": "fight2/plate_color_2.png", "paint_iou": 0.67, "colour_off": {"red": 3.6, "yellow": 2.2, "blue": 6.4, "floor": 1.4}, "square_gaps": {"red": 0.053, "blue": 0.137}, "ok": false}
+set aside {"plate": "fight2/plate_color_3.png", "paint_iou": 0.68, "colour_off": {"red": 5.8, "yellow": 4.5, "blue": 1.0, "floor": 1.4}, "square_gaps": {"red": 0.094, "blue": 0.052}, "ok": false}
+kept      {"plate": "fight3/plate_color_1.png", "paint_iou": 0.78, "colour_off": {"red": 1.4, "yellow": 1.4, "blue": 1.0, "floor": 1.4}, "square_gaps": {"red": 0.045, "blue": 0.051}, "ok": true}
+set aside {"plate": "fight3/plate_color_2.png", "paint_iou": 0.74, "colour_off": {"red": 1.4, "yellow": 1.4, "blue": 2.2, "floor": 1.4}, "square_gaps": {"red": 0.035, "blue": 0.291}, "ok": false}
+kept      {"plate": "fight3/plate_color_3.png", "paint_iou": 0.72, "colour_off": {"red": 2.2, "yellow": 7.3, "blue": 0.0, "floor": 1.0}, "square_gaps": {"red": 0.03, "blue": 0.051}, "ok": true}
+kept      {"plate": "fight4/plate_color_1.png", "paint_iou": 0.88, "colour_off": {"red": 1.4, "yellow": 3.2, "blue": 1.4, "floor": 1.4}, "square_gaps": {"red": 0.047, "blue": 0.049}, "ok": true}
+set aside {"plate": "fight4/plate_color_2.png", "paint_iou": 0.87, "colour_off": {"red": 1.4, "yellow": 3.2, "blue": 5.4, "floor": 1.4}, "square_gaps": {"red": 0.031, "blue": 0.209}, "ok": false}
+kept      {"plate": "fight4/plate_color_3.png", "paint_iou": 1.0, "colour_off": {"red": 1.4, "yellow": 3.2, "blue": 1.4, "floor": 1.4}, "square_gaps": {"red": 0.045, "blue": 0.064}, "ok": true}
+kept      {"plate": "fight5/plate_color_1.png", "paint_iou": 0.78, "colour_off": {"red": 1.4, "yellow": 1.4, "blue": 1.0, "floor": 1.4}, "square_gaps": {"red": 0.051, "blue": 0.052}, "ok": true}
+set aside {"plate": "fight5/plate_color_2.png", "paint_iou": 0.75, "colour_off": {"red": 1.4, "yellow": 2.2, "blue": 8.1, "floor": 1.4}, "square_gaps": {"red": 0.032, "blue": 0.249}, "ok": false}
+kept      {"plate": "fight5/plate_color_3.png", "paint_iou": 0.74, "colour_off": {"red": 2.2, "yellow": 6.3, "blue": 0.0, "floor": 1.4}, "square_gaps": {"red": 0.028, "blue": 0.049}, "ok": true}
+/home1/illyhoan/arc/augment/.venv/lib/python3.11/site-packages/diffusers/utils/deprecation_utils.py:23: FutureWarning: `torch_dtype` is deprecated and will be removed in version 1.0.0. Please use `dtype` instead.
+  deprecate("torch_dtype", "1.0.0", _TORCH_DTYPE_DEPRECATION_MESSAGE)
+Couldn't connect to the Hub: Cannot reach https://huggingface.co/api/models/black-forest-labs/FLUX.2-klein-4B: offline mode is enabled. To disable it, please unset the `HF_HUB_OFFLINE` environment variable..
+Will try to load from local cache.
+Loading pipeline components...:   0%|          | 0/5 [00:00<?, ?it/s]
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s][A
+Loading weights:  34%|███▍      | 137/398 [00:00<00:00, 1332.83it/s][A
+Loading weights:  71%|███████   | 282/398 [00:00<00:00, 1395.22it/s][ALoading weights: 100%|██████████| 398/398 [00:00<00:00, 1828.33it/s]
+Loading pipeline components...:  40%|████      | 2/5 [00:00<00:00,  4.66it/s]Loading pipeline components...: 100%|██████████| 5/5 [00:00<00:00,  6.11it/s]Loading pipeline components...: 100%|██████████| 5/5 [00:00<00:00,  5.88it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 25%|██▌       | 1/4 [00:00<00:00,  3.02it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.76it/s]100%|██████████| 4/4 [00:00<00:00,  4.25it/s]100%|██████████| 4/4 [00:00<00:00,  4.21it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.09it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.68it/s]100%|██████████| 4/4 [00:00<00:00,  4.16it/s]100%|██████████| 4/4 [00:00<00:00,  4.46it/s]
+fight1: 14 coloured cut-outs -> /home1/illyhoan/arc/augment/data/sprites/cutouts/fight1
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.09it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.67it/s]100%|██████████| 4/4 [00:00<00:00,  4.15it/s]100%|██████████| 4/4 [00:00<00:00,  4.45it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.09it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.68it/s]100%|██████████| 4/4 [00:00<00:00,  4.17it/s]100%|██████████| 4/4 [00:00<00:00,  4.47it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.07it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.66it/s]100%|██████████| 4/4 [00:00<00:00,  4.16it/s]100%|██████████| 4/4 [00:00<00:00,  4.46it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.09it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.68it/s]100%|██████████| 4/4 [00:00<00:00,  4.16it/s]100%|██████████| 4/4 [00:00<00:00,  4.46it/s]
+fight2: 21 coloured cut-outs -> /home1/illyhoan/arc/augment/data/sprites/cutouts/fight2
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.13it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.69it/s]100%|██████████| 4/4 [00:00<00:00,  4.14it/s]100%|██████████| 4/4 [00:00<00:00,  4.45it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.04it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.65it/s]100%|██████████| 4/4 [00:00<00:00,  4.15it/s]100%|██████████| 4/4 [00:00<00:00,  4.44it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.05it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.66it/s]100%|██████████| 4/4 [00:00<00:00,  4.14it/s]100%|██████████| 4/4 [00:00<00:00,  4.44it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.07it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.66it/s]100%|██████████| 4/4 [00:00<00:00,  4.13it/s]100%|██████████| 4/4 [00:00<00:00,  4.44it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.06it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.66it/s]100%|██████████| 4/4 [00:00<00:00,  4.12it/s]100%|██████████| 4/4 [00:00<00:00,  4.43it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.06it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.67it/s]100%|██████████| 4/4 [00:00<00:00,  4.15it/s]100%|██████████| 4/4 [00:00<00:00,  4.45it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.05it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.66it/s]100%|██████████| 4/4 [00:00<00:00,  4.14it/s]100%|██████████| 4/4 [00:00<00:00,  4.44it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.04it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.65it/s]100%|██████████| 4/4 [00:00<00:00,  4.13it/s]100%|██████████| 4/4 [00:00<00:00,  4.43it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.03it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.64it/s]100%|██████████| 4/4 [00:00<00:00,  4.12it/s]100%|██████████| 4/4 [00:00<00:00,  4.42it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.04it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.64it/s]100%|██████████| 4/4 [00:00<00:00,  4.12it/s]100%|██████████| 4/4 [00:00<00:00,  4.42it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.06it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.65it/s]100%|██████████| 4/4 [00:00<00:00,  4.13it/s]100%|██████████| 4/4 [00:00<00:00,  4.43it/s]
+fight3: 86 coloured cut-outs -> /home1/illyhoan/arc/augment/data/sprites/cutouts/fight3
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.04it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.65it/s]100%|██████████| 4/4 [00:00<00:00,  4.12it/s]100%|██████████| 4/4 [00:00<00:00,  4.42it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.04it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.64it/s]100%|██████████| 4/4 [00:00<00:00,  4.11it/s]100%|██████████| 4/4 [00:00<00:00,  4.41it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.04it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.65it/s]100%|██████████| 4/4 [00:00<00:00,  4.12it/s]100%|██████████| 4/4 [00:00<00:00,  4.42it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.03it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.64it/s]100%|██████████| 4/4 [00:00<00:00,  4.11it/s]100%|██████████| 4/4 [00:00<00:00,  4.41it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.01it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.64it/s]100%|██████████| 4/4 [00:00<00:00,  4.12it/s]100%|██████████| 4/4 [00:00<00:00,  4.42it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.03it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.64it/s]100%|██████████| 4/4 [00:00<00:00,  4.10it/s]100%|██████████| 4/4 [00:00<00:00,  4.41it/s]
+fight4: 51 coloured cut-outs -> /home1/illyhoan/arc/augment/data/sprites/cutouts/fight4
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.04it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.64it/s]100%|██████████| 4/4 [00:00<00:00,  4.11it/s]100%|██████████| 4/4 [00:00<00:00,  4.41it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.02it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.63it/s]100%|██████████| 4/4 [00:00<00:00,  4.10it/s]100%|██████████| 4/4 [00:00<00:00,  4.40it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.00it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.62it/s]100%|██████████| 4/4 [00:00<00:00,  4.11it/s]100%|██████████| 4/4 [00:00<00:00,  4.40it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.03it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.62it/s]100%|██████████| 4/4 [00:00<00:00,  4.11it/s]100%|██████████| 4/4 [00:00<00:00,  4.41it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.02it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.62it/s]100%|██████████| 4/4 [00:00<00:00,  4.10it/s]100%|██████████| 4/4 [00:00<00:00,  4.40it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.04it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.63it/s]100%|██████████| 4/4 [00:00<00:00,  4.10it/s]100%|██████████| 4/4 [00:00<00:00,  4.40it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  5.99it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.61it/s]100%|██████████| 4/4 [00:00<00:00,  4.10it/s]100%|██████████| 4/4 [00:00<00:00,  4.39it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.01it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.61it/s]100%|██████████| 4/4 [00:00<00:00,  4.09it/s]100%|██████████| 4/4 [00:00<00:00,  4.39it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.03it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.63it/s]100%|██████████| 4/4 [00:00<00:00,  4.11it/s]100%|██████████| 4/4 [00:00<00:00,  4.41it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.00it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.61it/s]100%|██████████| 4/4 [00:00<00:00,  4.09it/s]100%|██████████| 4/4 [00:00<00:00,  4.39it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  5.98it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.61it/s]100%|██████████| 4/4 [00:00<00:00,  4.10it/s]100%|██████████| 4/4 [00:00<00:00,  4.39it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.01it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.62it/s]100%|██████████| 4/4 [00:00<00:00,  4.09it/s]100%|██████████| 4/4 [00:00<00:00,  4.39it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  5.99it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.61it/s]100%|██████████| 4/4 [00:00<00:00,  4.09it/s]100%|██████████| 4/4 [00:00<00:00,  4.39it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  6.01it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.61it/s]100%|██████████| 4/4 [00:00<00:00,  4.09it/s]100%|██████████| 4/4 [00:00<00:00,  4.39it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  5.99it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.61it/s]100%|██████████| 4/4 [00:00<00:00,  4.09it/s]100%|██████████| 4/4 [00:00<00:00,  4.39it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  5.97it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.59it/s]100%|██████████| 4/4 [00:00<00:00,  4.09it/s]100%|██████████| 4/4 [00:00<00:00,  4.38it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  5.99it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.61it/s]100%|██████████| 4/4 [00:00<00:00,  4.08it/s]100%|██████████| 4/4 [00:00<00:00,  4.38it/s]
+  0%|          | 0/4 [00:00<?, ?it/s] 50%|█████     | 2/4 [00:00<00:00,  5.97it/s] 75%|███████▌  | 3/4 [00:00<00:00,  4.60it/s]100%|██████████| 4/4 [00:00<00:00,  4.10it/s]100%|██████████| 4/4 [00:00<00:00,  4.39it/s]
+fight5: 153 coloured cut-outs -> /home1/illyhoan/arc/augment/data/sprites/cutouts/fight5
+375 images from 0 -> /home1/illyhoan/arc/augment/out/run1
+375 images from 1500 -> /home1/illyhoan/arc/augment/out/run1
+375 images from 2250 -> /home1/illyhoan/arc/augment/out/run1
+375 images from 750 -> /home1/illyhoan/arc/augment/out/run1
+375 images from 2625 -> /home1/illyhoan/arc/augment/out/run1
+375 images from 1125 -> /home1/illyhoan/arc/augment/out/run1
+375 images from 375 -> /home1/illyhoan/arc/augment/out/run1
+375 images from 1875 -> /home1/illyhoan/arc/augment/out/run1
+{
+ "run": "run1",
+ "verdict": "GO",
+ "failed": [],
+ "warnings": [],
+ "images": 3000,
+ "kinds": {
+  "two": 0.845,
+  "one": 0.11,
+  "empty": 0.046
+ },
+ "two_robot_images_with_boxes_touching": 0.5,
+ "label_errors": [],
+ "loads_in_ultralytics": {
+  "colour": true,
+  "grey": true
+ },
+ "plates": [
+  {
+   "plate": "fight2/plate_color_1.png",
+   "paint_iou": 0.69,
+   "colour_off": {
+    "red": 3.6,
+    "yellow": 2.2,
+    "blue": 2.2,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.062,
+    "blue": 0.048
+   },
+   "ok": true
+  },
+  {
+   "plate": "fight3/plate_color_1.png",
+   "paint_iou": 0.78,
+   "colour_off": {
+    "red": 1.4,
+    "yellow": 1.4,
+    "blue": 1.0,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.045,
+    "blue": 0.051
+   },
+   "ok": true
+  },
+  {
+   "plate": "fight3/plate_color_3.png",
+   "paint_iou": 0.72,
+   "colour_off": {
+    "red": 2.2,
+    "yellow": 7.3,
+    "blue": 0.0,
+    "floor": 1.0
+   },
+   "square_gaps": {
+    "red": 0.03,
+    "blue": 0.051
+   },
+   "ok": true
+  },
+  {
+   "plate": "fight4/plate_color_1.png",
+   "paint_iou": 0.88,
+   "colour_off": {
+    "red": 1.4,
+    "yellow": 3.2,
+    "blue": 1.4,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.047,
+    "blue": 0.049
+   },
+   "ok": true
+  },
+  {
+   "plate": "fight4/plate_color_3.png",
+   "paint_iou": 1.0,
+   "colour_off": {
+    "red": 1.4,
+    "yellow": 3.2,
+    "blue": 1.4,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.045,
+    "blue": 0.064
+   },
+   "ok": true
+  },
+  {
+   "plate": "fight5/plate_color_1.png",
+   "paint_iou": 0.78,
+   "colour_off": {
+    "red": 1.4,
+    "yellow": 1.4,
+    "blue": 1.0,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.051,
+    "blue": 0.052
+   },
+   "ok": true
+  },
+  {
+   "plate": "fight5/plate_color_3.png",
+   "paint_iou": 0.74,
+   "colour_off": {
+    "red": 2.2,
+    "yellow": 6.3,
+    "blue": 0.0,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.028,
+    "blue": 0.049
+   },
+   "ok": true
+  }
+ ],
+ "plates_set_aside": [
+  {
+   "plate": "fight2/rejected_plate_color_2.png",
+   "paint_iou": 0.67,
+   "colour_off": {
+    "red": 3.6,
+    "yellow": 2.2,
+    "blue": 6.4,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.053,
+    "blue": 0.137
+   },
+   "ok": false
+  },
+  {
+   "plate": "fight2/rejected_plate_color_3.png",
+   "paint_iou": 0.68,
+   "colour_off": {
+    "red": 5.8,
+    "yellow": 4.5,
+    "blue": 1.0,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.094,
+    "blue": 0.052
+   },
+   "ok": false
+  },
+  {
+   "plate": "fight3/rejected_plate_color_2.png",
+   "paint_iou": 0.74,
+   "colour_off": {
+    "red": 1.4,
+    "yellow": 1.4,
+    "blue": 2.2,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.035,
+    "blue": 0.291
+   },
+   "ok": false
+  },
+  {
+   "plate": "fight4/rejected_plate_color_2.png",
+   "paint_iou": 0.87,
+   "colour_off": {
+    "red": 1.4,
+    "yellow": 3.2,
+    "blue": 5.4,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.031,
+    "blue": 0.209
+   },
+   "ok": false
+  },
+  {
+   "plate": "fight5/rejected_plate_color_2.png",
+   "paint_iou": 0.75,
+   "colour_off": {
+    "red": 1.4,
+    "yellow": 2.2,
+    "blue": 8.1,
+    "floor": 1.4
+   },
+   "square_gaps": {
+    "red": 0.032,
+    "blue": 0.249
+   },
+   "ok": false
+  }
+ ],
+ "width_against_real": 0.88,
+ "floor_coverage": 0.94,
+ "near_duplicates": 0,
+ "robots_by_source": {
+  "chopper-or-overkill:livery": 433,
+  "hypershock:invented": 90,
+  "hypershock:livery": 518,
+  "kraken:livery": 594,
+  "mammoth:livery": 418,
+  "mesh:gigabyte": 429,
+  "nightmare:invented": 38,
+  "nightmare:livery": 483,
+  "slot-machine:invented": 133,
+  "slot-machine:livery": 521,
+  "tazbot:livery": 624,
+  "whiplash:livery": 514,
+  "witch-doctor:invented": 99,
+  "witch-doctor:livery": 503
+ },
+ "detector_as_provided": {
+  "images": 300,
+  "robots": 540,
+  "found": 360,
+  "extra_boxes": 74,
+  "recall": 0.67,
+  "recall_by_robot": {
+   "chopper-or-overkill": 0.37,
+   "gigabyte": 0.5,
+   "hypershock": 0.59,
+   "kraken": 0.88,
+   "mammoth": 0.15,
+   "nightmare": 0.74,
+   "slot-machine": 0.79,
+   "tazbot": 0.81,
+   "whiplash": 0.72,
+   "witch-doctor": 0.85
+  }
+ }
+}
+done; images and report under /home1/illyhoan/arc/augment/out/run1
