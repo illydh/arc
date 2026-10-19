@@ -18,6 +18,33 @@ DATA="$(cd "$HERE/../../data" && pwd)"
 
 LIST="$(mktemp)"
 trap 'rm -f "$LIST"' EXIT
+
+# `stage.sh combat` writes one archive of what the combat set needs on top of
+# what is already on CARC: the reviewed combat frames with their outlines and
+# the pair tracks (combat.py), and the SAM 2.1 checkpoint that cuts the new
+# robots out (a symlink here, so it goes up as the file it points to). Unpack
+# it on CARC with:
+#   tar -xzf carc-combat-inputs.tar.gz -C /home1/illyhoan/arc/augment
+if [ "${1:-}" = "combat" ]; then
+  "$HERE/../../.venv/bin/python" - "$HERE/.." > "$LIST" 2>/dev/null <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import combat
+data = combat.REAL.parent
+files = {"weights/sam2.1_s.pt"}
+for clip in combat.CLIPS_USED:
+    files.add(f"real/{clip}/combat/tracks.json")
+    for c in combat.poses(clip):
+        d = Path(c["dir"]).relative_to(data)
+        files |= {f"{d}/images/{c['frame']:06d}.jpg", f"{d}/masks/{c['frame']:06d}.png"}
+print("\n".join(sorted(files)))
+PY
+  mkdir -p "$DATA/../out"
+  sed 's|^|data/|' "$LIST" | tar -czhf "$DATA/../out/carc-combat-inputs.tar.gz" -C "$DATA/.." -T -
+  echo "wrote $(cd "$DATA/../out" && pwd)/carc-combat-inputs.tar.gz ($(wc -l < "$LIST" | tr -d ' ') files)"
+  exit 0
+fi
 "$HERE/../../.venv/bin/python" - "$DATA" "$HERE/.." > "$LIST" <<'PY'
 import json, sys
 from pathlib import Path
