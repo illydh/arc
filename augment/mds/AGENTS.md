@@ -16,7 +16,10 @@ builds clobbering each other.
 ```
 mds/                 context.md, carc.md + this file (tracked, mirroring vision/mds/ and splatting/mds/)
 scripts/extract.py   plates, labelled real frames and robot cut-outs from the fight clips
-scripts/robots.py    which robot is which in each clip, and each robot's livery in words
+scripts/robots.py    which robot is which in each clip, each robot's livery in words, and the
+                     roster robots with no footage, in words
+scripts/combat.py    robots in combat from the set-aside frames: touching pairs followed
+                     through contact, and stopped, flipped or lifted single robots
 scripts/colorize.py  colours a clip's plate, or its robot cut-outs, with the image model
 scripts/compose.py   robots onto the coloured plates -> labelled images, colour and grey
 scripts/augment_report.py  grades a composed run, GO / MARGINAL / NO-GO
@@ -37,7 +40,12 @@ data/               git-ignored:
                       rejected_plate_color_<seed>.png is one the gate set aside
   sprites/<robot>/    compose.py's bank of mesh renders, rebuilt when its settings change
   sprites/cutouts/<clip>/  colorize.py output: <robot>_<seed>_<n>.png sheets, their _color.png,
-                      one sprite per cut-out, index.json
+                      one sprite per cut-out, index.json. Run1's, rebuilt from its sheets
+  sprites/cutouts_mac_2026-10-04/  the Mac trial's sheets, set aside
+  sprites/combat/<clip>/   colorize.py poses output, laid out as cutouts/
+  sprites/newbots/<robot>/ colorize.py newbots output: sheet_<seed>.png, one sprite per view,
+                      index.json
+  real/<clip>/combat/ combat.py track output: images/, masks/ of touching pairs, tracks.json
   real/<clip>/        extract.py output: plate.png, images/, masks/, outlines.json (outline pass);
                       labels/, proposals/, sheets/, manifest.json (review pass)
 .venv/              local environment -- git-ignored
@@ -98,7 +106,10 @@ The outline model is SAM 2.1 through Ultralytics, so there is no separate
 ```
 augment/.venv/bin/python augment/scripts/colorize.py plate <clip>... [--seeds N...]
 augment/.venv/bin/python augment/scripts/colorize.py cutouts <clip>... [--sheets N]
-augment/.venv/bin/python augment/scripts/compose.py <run> [-n 12] [--seed 0] [--start 0]
+augment/.venv/bin/python augment/scripts/colorize.py poses <clip>...
+augment/.venv/bin/python augment/scripts/colorize.py newbots <robot>... [--seeds N...]
+augment/.venv/bin/python augment/scripts/combat.py track|review <fight2..fight5>...
+augment/.venv/bin/python augment/scripts/compose.py <run> [-n 12] [--seed 0] [--start 0] [--combat]
 augment/.venv/bin/python augment/scripts/augment_report.py gate
 augment/.venv/bin/python augment/scripts/augment_report.py augment/out/<run>
 ```
@@ -123,6 +134,16 @@ there is, so what `colorize.py` has made decides what a run looks like.
 renames a failing one `rejected_plate_color_<seed>.png`, so `compose.py`
 leaves it alone. Run it after `colorize.py plate` and before `compose.py`;
 the CARC job does.
+
+The combat trial: `combat.py track` follows each pair of robots into
+contact through the video, about 25 minutes for fights 2 to 5 here, and
+`combat.py review` draws every candidate on `real/<clip>/sheets/combat_*.jpg`.
+Nothing is used until it is listed by hand in `combat.SINGLES` or
+`combat.PAIRS`, with its name corrected there if the automatic one is wrong.
+Then `colorize.py poses` colours what is listed, `colorize.py newbots` draws
+the robots of `robots.NEW_ROBOTS`, and `compose.py --combat` composes the
+three combat kinds. The model drew legs on a robot until told it is a heavy
+wheeled machine and not a toy; look at every new-robot sheet.
 
 Robot identities are in `scripts/robots.py`: the rule that splits each clip's
 two robots, the frames where that rule was wrong (`SWAPPED`, `UNNAMED`), the

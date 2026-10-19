@@ -10,7 +10,7 @@ and `setup_env.sh` are now self-contained accordingly: `CARC_ENV`, `CARC_DATA`,
 `CARC_OUT` and the `--output` log path are hardcoded in them, all under
 `/home1/illyhoan/arc/`, and nothing is read from the submitting environment
 except `RUN` (the dataset), `LABEL` (the name of this training run) and
-optionally `ITERS` and `EXTRA`.
+optionally `ITERS`, `EXTRA` and `TRANSFORMS`.
 
 ## Submitting a job (CARC terminal)
 
@@ -47,6 +47,71 @@ Extra `ns-train` settings go in `EXTRA`, set in the submitting shell (inside
 EXTRA="--pipeline.model.use-bilateral-grid True nerfstudio-data --downscale-factor 1" \
   sbatch --export=ALL,RUN=interior400,LABEL=run3 train.job
 ```
+
+## Run 3 (four parallel jobs)
+
+Prepared and tested on the Mac on 2026-10-12; not yet run. What the four
+arms are and how they are judged: context.md, Run 3.
+
+**Inputs.** Two things are git-ignored and cannot be made on CARC, so they
+travel in one archive, `splatting/out/carc-run3-inputs.tar.gz` (60 MB):
+
+| In the archive | Size | For |
+|---|---|---|
+| `data/processed/interior400/transforms_interior.json`, `sparse_pc_interior.ply` | 1.3 MB | `run3a`, `run3b`, `run3c`: the interior-only photo lists and seed points |
+| `data/processed/interior_dense/transforms.json`, `sparse_pc.ply`, `images_2/` | 59 MB | `run3d`: the denser set's poses, seed points and half-size photos |
+
+The denser set goes up without its full-size photos. `submit_run3.sh` passes
+`--downscale-factor 2` for that arm, so the dataparser never opens one.
+
+```sh
+# 1. laptop, from the repo root: commit and push, then copy the archive up
+#    by any means, e.g.
+scp splatting/out/carc-run3-inputs.tar.gz illyhoan@discovery.usc.edu:/home1/illyhoan/arc/
+
+# 2. CARC terminal
+cd /home1/illyhoan/arc && git pull
+tar -xzf carc-run3-inputs.tar.gz -C splatting && rm carc-run3-inputs.tar.gz
+bash splatting/scripts/carc/submit_run3.sh
+squeue -u $USER
+```
+
+`submit_run3.sh` says, per arm, either that it was submitted or why not: the
+inputs are missing, a half-size photo is missing, or the run's folder already
+exists. It is safe to run again. Each job asks for 2 hours and should need
+well under one. Logs are `logs/run3a-<jobid>.out` and so on.
+
+**Results.** Three arms land under `out/interior400/splatfacto/`, the fourth
+under `out/interior_dense/splatfacto/`, because the folder is named after the
+dataset. Locally they all go in `splatting/out/splatfacto/`. Checkpoints
+(`nerfstudio_models/`) are not needed for grading, so one archive of about
+1 GB carries all four:
+
+```sh
+# 3. CARC terminal, once the four jobs have finished
+cd /home1/illyhoan/arc/splatting/out
+tar -czf /home1/illyhoan/arc/run3-results.tar.gz --exclude nerfstudio_models \
+  -C interior400/splatfacto run3a run3b run3c -C ../../interior_dense/splatfacto run3d
+
+# 4. laptop, from the repo root: copy it down by any means, then
+tar -xzf run3-results.tar.gz -C splatting/out/splatfacto
+```
+
+Then grade each. The third argument is the dataset the arm trained on:
+
+```sh
+for r in run3a run3b run3c; do
+  .venv/bin/python splatting/scripts/splat_report.py \
+    splatting/out/splatfacto/$r/export/splat.ply splatting/out/splatfacto/$r \
+    splatting/data/processed/interior400 splatting/out/splatfacto/$r/eval
+done
+.venv/bin/python splatting/scripts/splat_report.py \
+  splatting/out/splatfacto/run3d/export/splat.ply splatting/out/splatfacto/run3d \
+  splatting/data/processed/interior_dense splatting/out/splatfacto/run3d/eval
+```
+
+To train from a dataset file other than `transforms.json`, `train.job` takes
+`TRANSFORMS=<file name>`, set in the submitting shell like `EXTRA`.
 
 ## Run 2 (two parallel jobs)
 
@@ -212,4 +277,6 @@ first look.
 | gsplat CUDA compile error mid-job | `module load` differs between `setup_env.sh` and `train.job` |
 | `ModuleNotFoundError: pymeshlab` at the export step | `setup_env.sh` not re-run after it was added |
 | Job pends a long time | a100 contention; try a different `--gres` type from the preflight table |
+| `submit_run3.sh`: an arm "not submitted" | it says why: the archive was not unpacked into `splatting/`, a half-size photo is missing, or that run's folder already exists |
+| `train.job`: `no dataset at ...` | `TRANSFORMS` names a file that is not in the dataset folder |
 | `Could not find any image files` | dataset not at `/home1/illyhoan/arc/splatting/data/processed/<RUN>/`, or (optional path) `stage.sh` was run before the dataset finished processing |

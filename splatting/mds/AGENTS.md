@@ -20,10 +20,11 @@ mds/       context.md, carc.md + this file (tracked, mirroring vision/mds/)
 scripts/   dev harnesses for the local CPU half
 scripts/carc/  staging, SLURM job and retrieval for the remote GPU half
 ```
-No packages yet: the local half of the pipeline is four scripts and there is
+No packages yet: the local half of the pipeline is five scripts and there is
 only one pipeline. `splat_clean.py` imports its floater and floor logic from
-`splat_report.py` so the two can't disagree; add modules when there is more
-than that to share.
+`splat_report.py` so the two can't disagree, and `interior_dataset.py` imports
+frame selection and the COLMAP calls from `process_video.py`; add modules when
+there is more than that to share.
 
 ## Conventions
 - Minimal, direct implementations. No speculative abstraction, no config
@@ -61,13 +62,20 @@ Append new ones as they are introduced.
 ```
 .venv/bin/python splatting/scripts/process_video.py [--frames N] [--matcher M]
 .venv/bin/python splatting/scripts/sfm_report.py splatting/data/processed/<run>
+.venv/bin/python splatting/scripts/interior_dataset.py lists|dense
 .venv/bin/python splatting/scripts/splat_report.py <splat.ply> <train-run-dir> <processed-run-dir> [<eval-dir>]
 .venv/bin/python splatting/scripts/splat_clean.py <splat.ply> <train-run-dir> <processed-run-dir>
 ```
 
 `process_video.py` writes a nerfstudio-format dataset to
 `data/processed/<name>/`; `sfm_report.py` grades the reconstruction and writes
-`report.json` beside it. `splat_report.py` grades a trained splat (integrity,
+`report.json` beside it. `interior_dataset.py` makes run 3's two datasets, both
+with the training and held-out photos pinned by name: `lists` writes
+`transforms_interior.json` and `sparse_pc_interior.ply` into `interior400/`
+(same frames and poses, interior photos only), and `dense` builds
+`interior_dense/` from the video at five photos a second with its own camera
+solve, which took 33 minutes. A dataset file that pins its photos is
+what `splat_report.py` reads the held-out names from. `splat_report.py` grades a trained splat (integrity,
 floaters, floor, held-out scores) and writes `report.json` plus three PNGs to
 `report/` beside the .ply. Without `<eval-dir>` it takes held-out scores from
 the training run's tfevents file; with it, from `eval.job`'s `metrics.json`

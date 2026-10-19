@@ -198,8 +198,10 @@ for RGBTrack 6D pose testing.
 - **Class order is `0 = nemesis`, `1 = non-nemesis`** (confirmed by the user,
   2026-10-04).
 - **Cut-outs are coloured in their robot's real livery**, described to the
-  model in words from the identity table. About one in five keeps an invented
-  paint, to cover guests. No wiki picture is downloaded or given to the model.
+  model in words from the identity table. Every fifth sheet of a robot keeps
+  an invented paint, to cover guests; only robots with five sheets or more
+  get one, so in run1 that was 4 of 41 sheets and 6% of the robots. No wiki
+  picture is downloaded or given to the model.
 - **Every robot in these images is `non-nemesis`, and Nemesis is not in them.**
   They are the negative class's training images. An unlabelled Nemesis would
   teach the detector to ignore it, and one labelled from the approximate mesh
@@ -593,13 +595,8 @@ training on these images helps.
 - `stage.sh` and `fetch.sh` are not known to have talked to CARC: the user
   moved the inputs and results themselves. The upload's file list and rsync
   flags were rehearsed into a local folder.
-- No plate from the full model has passed (see CARC smoke run). The plate
-  check has passed only plates from the Mac's 4-bit build.
-- The covered reference has not been through the full model.
-- The invented-paint branch (every fifth sheet) has run once, on the Mac's
-  build and one robot (see One visit instead of two). Never on the full model.
-- The gate has only seen plates from the smoke run and the Mac. How many of
-  the full run's twelve pass is not known.
+- Whether training on the set improves detection on real fights: the proof
+  test, still parked.
 
 ## CARC smoke run (2026-10-05)
 `RUN=smoke,N=50,SHEETS=1,SEEDS=3`, job 12658940, one A100. Output:
@@ -683,7 +680,8 @@ The same four raw pictures through the new correction:
 - **The covered reference has only been through the 4-bit build**: fight3
   seed 3 on the Mac, squares empty, plate passes (overlap 0.85, squares 0.05
   and 0.06). That shows the covered picture still works as a reference. It
-  does not show what the full model does with it; the second smoke run does.
+  did not show what the full model does with it; the full run did (see Full
+  run): no copied robots on any of its twelve plates.
 
 ### One visit instead of two (2026-10-12)
 A second smoke test would only have looked at the plates. The plate checks
@@ -724,6 +722,154 @@ Before the full run, the three bad raw pictures have to be deleted on CARC,
 or they are reused and set aside again (`carc.md`, step 5). No plate from the
 full model has passed yet; the gate is what stands between that and the set.
 
+## Full run, `run1` (2026-10-15)
+`RUN=run1`, defaults (3,000 images, all sheets, seeds 1 2 3). Output:
+`augment/out/run1/` (2.6 GB). **Verdict GO**, no warnings. The job log was not
+copied back, so its run time is not known.
+
+| Check | Result | Bar |
+|---|---|---|
+| Images | 3,000 colour, 3,000 grey | |
+| Label files, class ids, boxes inside the frame | no errors | none |
+| Loads in Ultralytics | colour and grey | both |
+| Mix two / one / empty | 0.845 / 0.110 / 0.046 | 0.85 / 0.10 / 0.05 +- 0.04 |
+| Plates passing | 7 of 12 | 6 |
+| Box width against real robots at the same row | 0.88 | 0.6 to 1.6 |
+| Floor grid reached | 0.94 | 0.6 |
+| Near-duplicates | 0 | 1% |
+| Two-robot images with boxes touching | 0.50 | reported |
+
+**Plates.** The covered reference worked: none of the twelve pictures the
+full model painted has a robot on a start square.
+- Kept: fight2 seed 1; fight3 seeds 1, 3; fight4 seeds 1, 3 (3 is the Mac's);
+  fight5 seeds 1, 3. All seven look right by eye: charcoal floor, red square
+  left, blue right, both empty, red and blue B, yellow outlines. fight2's
+  images all sit on its one plate.
+- Set aside: seed 2 in every fight, and fight2 seed 3. **Seed 2 painted the
+  blue square in two tones**: its right-hand part a deeper blue whose hue
+  falls outside the blue range, so after correction it stays violet (blue
+  square gaps 0.14 to 0.29). fight2 seed 3 missed on the red square by a hair
+  (0.094 against 0.09); by eye it looks fine.
+- So the square check also catches uneven paint, not only copied robots.
+
+**Cut-out sheets, all 41 looked at.** Liveries right on all nine robots.
+- **Nightmare drifts**: 7 of its 36 livery cut-outs came out maroon, red,
+  teal or brown instead of black, measured on the cells that hold a real
+  cut-out. Mammoth (0 of 10) and Chopper-or-OverKill (0 of 11) held.
+- **Mammoth shows brown patches in composites**: its outline includes the
+  floor seen through its open frame, and the model paints that floor too.
+- The four invented-paint sheets give each robot a different colour (red,
+  orange, yellow, green, blue, white, black), as intended.
+- **On a robot's last, part-filled sheet the model draws extra robots of its
+  own** in the empty cells (the prompt says nine). Only cells holding a real
+  cut-out are used, so they never reach an image.
+
+**Robots in the images**: Tazbot 624, Slot Machine 654 (133 invented),
+HyperShock 608 (90), Witch Doctor 602 (99), Kraken 594, Nightmare 521 (38),
+Whiplash 514, Chopper-or-OverKill 433, Gigabyte 429, Mammoth 418. Fight2's
+two robots are fewest because an image's two robots come from different
+fights.
+
+**The detector as provided**, on 300 of the images: finds 360 of 540 robots
+(0.67) and adds 74 boxes; 0.42 on the smoke run, 0.91 on the real labelled
+frames. Lowest on Mammoth 0.15 and Chopper-or-OverKill 0.37, the two it also
+missed in real fight2 frames; highest on Kraken 0.88 and Witch Doctor 0.85.
+Reported, not judged: it is not evidence that training on the set helps.
+
+## Combat trial (2026-10-15, on the Mac)
+Plan approved 2026-10-15: robots in real combat and robots with no footage,
+1,000 images made and judged on this Mac before anything goes to CARC. The
+user chose real combat poses and new robots, made from the footage with no
+image-model pass per image. Sparks, flames, smoke and debris were not chosen.
+Output: `augment/out/combat-trial/`, laid out as run1. **Verdict GO**, no
+warnings.
+
+### Run1's colours, rebuilt on the Mac
+Run1's 41 coloured cut-out sheets and 12 raw plate pictures (from
+`out/run1/report/`) were put back in `data/`; the plates and sprites were
+rebuilt from them with no model call. The gate kept the same 7 plates. The
+Mac trial's older sheets are in `sprites/cutouts_mac_2026-10-04/`.
+
+### Real combat poses (`scripts/combat.py`)
+- **Two robots in contact are one patch of change**, so `extract.py` outlined
+  them as one robot or only one of them. `combat.py track` follows each pair
+  into contact through the video, every 6th frame (kept frames are 30
+  apart), prompting SAM 2.1 with each robot's previous box, a point on it and
+  a background point on the other. It starts from the last kept frame where
+  the two were apart and also runs backwards from the first one after.
+- **What made it work.** A first pass found 23 touching frames in 46 contact
+  stretches. SAM's grown boxes took in floor lettering and slots, which the
+  "share on changed pixels" test then rejected; outlines are now trimmed to
+  changed pixels and their surroundings (`tidy`), and a robot trimmed by more
+  than a quarter is not used. With backward tracking: 134 candidate frames.
+- **Every candidate was looked at**, with both outlines and names drawn.
+  108 pairs kept (`PAIRS`): fight2 1, fight3 23, fight4 39, fight5 45.
+  Dropped: an outline that took in the far-wall platform, a floor patch, a
+  spark cloud, or most of the other robot. One fight3 run was named the wrong
+  way round (followed back from a frame named by features alone) and is
+  corrected in the list. fight5 includes Witch Doctor thrown onto its side.
+- **Single robots** from set-aside frames outside contact: still (stopped,
+  flipped, wrecked) or much wider than a floor robot at that row (lifted).
+  30 kept of 128 candidates (`SINGLES`): Mammoth with its arms up, the
+  smashed Slot Machine, stopped and flipped robots. Most candidates were
+  floor slots or lettering, or debris.
+- **Few fight2 pairs.** Mammoth's open frame and fight2's merged outlines
+  lose the track; the one fight2 pair is Mammoth over Chopper-or-OverKill.
+- Naming uses run1's groups (`robots.groups`, `robots.name`); `identify` still
+  gives run1's names exactly.
+
+### Colouring the poses
+`colorize.py poses`: 31 sheets on the Mac, 246 sprites, every fifth sheet of
+a robot in invented paint. All looked at; liveries right. Nightmare's
+livery now says "no red, maroon, brown, teal": it stayed black on all three
+of its sheets (it drifted on 7 of 36 in run1). Mammoth still picks up brown
+where the floor shows through its frame.
+
+### New robots (`colorize.py newbots`)
+- Diablo, Ginsu, Malice, Chopper and OverKill, the roster robots with no
+  footage, described in words from the public wiki's ShowBot pages
+  (`robots.NEW_ROBOTS`); no picture was downloaded or given to the model.
+  Chopper and OverKill are both drawn because which one fight2 holds is not
+  known.
+- Drawn by the model from text, nine views to a sheet on grey floor, two
+  sheets each, then found on the sheet and cut out with SAM 2.1: 63 views,
+  all looked at, all clean.
+- **The prompt took two corrections.** Told "saw blades used as wheels", it
+  drew Ginsu on tyres; told "nine on a grid", it drew each on a grey mat;
+  then it drew Ginsu with legs. It now asks for "a heavy BattleBots fighting
+  robot ... a low, heavy vehicle ... no legs, not a humanoid and not a toy".
+- Checked beside renders of the Nemesis mesh: none looks like it.
+- In images they are sized like real robots (1.01 of a real robot's width
+  at the same row) and kept whole: two were first placed with their top just
+  off the frame, which the report caught as a label error.
+
+### The trial set
+| Check | Result | Bar |
+|---|---|---|
+| Images | 1,000 colour, 1,000 grey | |
+| Real pair / combat pose + robot / new robot + robot | 39.3% / 29.0% / 31.7% | 40 / 30 / 30 |
+| Label errors; loads in Ultralytics | none; both | none; both |
+| Plates | the 7 that passed for run1 | |
+| Box width against real robots | 0.88 | 0.6 to 1.6 |
+| Floor grid reached | 1.0 | 0.6 |
+| Near-duplicates | 0 | 1% |
+| Two-robot images with boxes touching | 0.68 (run1 0.50) | reported |
+
+Each of the 108 real pairs appears in about 3.6 images.
+
+The detector as provided, on 300 of the images: finds 0.69 of the robots
+(run1 0.67) and adds 98 boxes. By source: real pairs 0.74, stopped robots
+0.70, lifted robots 0.48, new robots 0.77, run1's calm cut-outs 0.61. By
+robot: Mammoth 0.20 again the lowest. Lifted robots, which the detector
+finds least, are mostly Mammoth. Reported, not judged.
+
+### Not verified
+- Whether training on these images helps: the proof test, still parked.
+- The new robots are the model's reading of words, not the robots
+  themselves.
+- Pose colours come from the Mac's 4-bit build; a CARC run would repaint
+  them with the full model.
+
 ## Steps
 Done so far: vault documentation, inputs checked, scaffold, real material
 from the clips (five plates, 170 labelled frames, 315 cut-outs), and three
@@ -739,21 +885,22 @@ Current plan (approved 2026-10-04): a bulk `non-nemesis` set on CARC.
 | 2 | Record robot identities as data; make the code CARC-ready | Mac | Done 2026-10-04: see Livery colouring and the bulk composer. Not run on CARC |
 | 3 | Commit and push `augment/`; copy inputs to CARC | Mac, the user | Handed over 2026-10-04: exact commands in `carc.md`. The upload was rehearsed locally (392 files, 80 MB) |
 | 4 | CARC setup and smoke run: every plate, one cut-out sheet per robot, 50 images | CARC, the user | Run 2026-10-05, verdict MARGINAL: the job works, the cut-outs are right, three of four plates were wrong. Fixed on the Mac the same day. No second smoke run: the job gates plates itself (2026-10-12). See CARC smoke run |
-| 5 | Full run, about 3,000 images, graded by `augment_report.py` | CARC, the user | Ready to submit (2026-10-12). Commands in `carc.md`, steps 1, 5 and 6 |
+| 5 | Full run, about 3,000 images, graded by `augment_report.py` | CARC, the user | Done 2026-10-15: `out/run1`, verdict GO. See Full run |
+| 6 | Combat trial: real combat poses and new robots, 1,000 images | Mac | Done 2026-10-15: `out/combat-trial`, verdict GO. Scaling up waits on the user's look. See Combat trial |
 
 What the full run is to produce:
 - About 3,000 images at 1440x762, each with a grey copy.
 - Mix: 85% two robots (half in contact), 10% one robot, 5% empty arena.
 - Plates for fights 2 to 5, three colour seeds each. All 315 cut-outs plus
-  Kraken's from fight1, in real livery with about one in five in invented
+  Kraken's from fight1, in real livery with every fifth sheet in invented
   paint. Gigabyte from its mesh.
 - Two ready-to-train folders, `colour/` and `grey/`, each with `images/`,
   `labels/` and a `data.yaml` naming both classes.
 - A report with a GO / MARGINAL / NO-GO verdict and contact sheets.
 
-Not in this run: sparks, smoke and model-generated new robots (the only way to
-get the roster robots that are in no clip). They need a model pass per image
-and a check that boxes still fit afterwards.
+Not in this run: sparks, smoke and model-generated new robots. The new robots
+and real combat poses are in the combat trial (step 6); sparks and smoke are
+not planned.
 
 ## Environment (measured 2026-10-04)
 - Apple M4, 16 GB unified memory, macOS 27.2. PyTorch 2.14.1 sees MPS.

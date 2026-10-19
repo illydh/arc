@@ -5,22 +5,17 @@ checkout at `/home1/illyhoan/arc` on CARC, jobs submitted from a CARC
 terminal, paths hardcoded in the scripts, and only `RUN` (plus optional `N`,
 `SHEETS`, `SEEDS`) given on the `sbatch` line.
 
-**Smoke run done 2026-10-05, verdict MARGINAL. Next: the full run (step 5),
-with no second smoke test (decided 2026-10-12).** The job works end to end on
-CARC and the cut-out sheets are right, but the three plates the full model
-coloured were wrong: a blue floor, and two blobs copied from the robots in
-the broadcast screenshot. Both are fixed in the code and checked on the Mac
-against the failed pictures; the full model has not run the fix yet. So the
-job now checks every plate itself and sets a failing one aside before
-anything is composed on it (`augment_report.py gate`). Details in
-`context.md`, CARC smoke run. `setup_env.sh` first stopped on the login
-node's process limit (see Likely failure modes) and now caps its threads.
+**Full run done 2026-10-15: `out/run1`, 3,000 images, verdict GO.** 7 of the
+12 plates passed the job's own check and the other 5 were set aside before
+composing; none had a copied robot. Results in `context.md`, Full run. The
+smoke run (2026-10-05, MARGINAL) found the plate faults that led to the fix
+and the gate. `setup_env.sh` first stopped on the login node's process limit
+(see Likely failure modes) and now caps its threads.
 
 The user commits, pushes and submits (decided 2026-10-04).
 
-**For the full run only steps 1, 2, 5 and 6 are left.** The inputs (step 3)
-and the environment with the model (step 4) are on CARC from the smoke run
-and need nothing more.
+**A further run needs only steps 1, 2, 5 and 6.** The inputs (step 3) and the
+environment with the model (step 4) are on CARC and need nothing more.
 
 ## What runs where
 

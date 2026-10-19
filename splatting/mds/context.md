@@ -303,7 +303,7 @@ floor is level. Run 1: 180,103 removed (17.9%), 826,069 kept (205 MB), floor
 |---|---|---|
 | Run 1: defaults, 1280x720 | 14 ms | 11 min |
 | Run 2a: three settings + `color-corrected-metrics`, 1280x720 | 247 ms | 1 h 54 min |
-| Run 2b: same, 2560x1440 | 1,221 ms | cancelled at step 10,000 after 2 h; about 9 h projected |
+| Run 2b: same, 2560x1440 | 1,224 ms | 8 h 25 min; the whole job just under 9 h (rerun, job 12679934, 2026-10-08) |
 
 - **The step time moves in three stages** because splatfacto trains at a
   quarter of the image size until step 3,000, half until 6,000, and full
@@ -324,6 +324,308 @@ floor is level. Run 1: 180,103 removed (17.9%), 826,069 kept (205 MB), floor
 - **Projection for run 2b as configured:** 2 h for the first 10,000 steps
   plus 20,000 x 1.22 s = 6.8 h, about 9 h, then export and eval. Inside the
   12-hour limit with about 3 hours to spare.
+
+## Run 2a findings (2026-10-05)
+`run2a` = run 1's data and size (1280x720) with camera pose refinement, the
+bilateral grid and scale regularization on. Graded by `splat_report.py` from
+`out/splatfacto/run2a/` (job 12658961). Same 28 held-out views as run 1.
+
+| | Run 1 | Run 2a |
+|---|---|---|
+| Gaussians exported | 1,006,172 | 898,595 |
+| Held-out PSNR / SSIM / LPIPS | 22.00 / 0.808 / 0.348 | 20.48 / 0.762 / 0.333 |
+| Held-out PSNR, colour-corrected | 23.04 | 22.23 |
+| Training-view PSNR | 29.0 | 31.8 |
+| Needle-shaped splats | 5.4% | 0.0% |
+| Splats in walked air: count / visual weight | 0.45% / 15.9% | 0.24% / 6.0% |
+| Floaters: count / visual weight | 17.9% / 20.2% | 22.5% / 15.2% |
+| Outside the mapped region, count | 15.1% | 20.2% |
+| Floor: cover / tilt | 90.1% / 4.2 deg | 88.9% / 4.7 deg |
+| **Verdict** | MARGINAL | **MARGINAL** |
+
+- **The plain scores went down, and two measurement effects explain it.**
+  Both were expected (see `submit_run2.sh`), and both are now measured.
+  (1) Colour: the bilateral grid corrects training photos only.
+  Colour-correcting each render before scoring recovers 1.75 dB for run 2a
+  and 1.04 dB for run 1. `splat_report.py` now reports this for every run
+  from the saved pairs; its figure for run 2a (22.23) matches `ns-eval`'s
+  own `cc_psnr` (22.24). (2) Pose: refinement moved the training cameras by
+  0.12 degrees on average and 0.56 at most, and the held-out cameras are
+  not refined. Matched points between each render and its photo sit a median
+  0.6 px apart in run 1 and 2.2 px in run 2a (up to 7.7 px), which is what
+  those angles predict at this focal length.
+- **With both taken out, run 2a is slightly ahead.** Warping each render
+  onto its photo with a homography, then colour-correcting: 23.64 -> 24.00 dB
+  over the 25 views that could be aligned in both runs. Interior views
+  24.61 -> 24.78 (21 views); through-the-glass views 18.54 -> 19.93 (4
+  views). This check was done by hand and is not in `splat_report.py`. A
+  homography cannot remove a sideways camera shift exactly, so it
+  under-corrects.
+- **What got better.** Needle-shaped splats are gone. The splats in the
+  walked air carry 6% of the visual weight, down from 16%. The foreground
+  blob is gone from `frame_00180` (20.0 -> 26.0 dB aligned) and `00110`. The
+  large dark blobs in the through-the-glass views are gone.
+- **What did not, or got worse.** `frame_00140`, `00150` and `00220` still
+  have a foreground blob. New colour artifacts: floaters with a green cast
+  (`00140`, `00150`, `00170`), a teal patch on the floor (`00070`), a ghost of
+  the cage over the floor (`00120`). The through-the-glass views trade dark
+  blobs for a pale ghost of the arena interior and stay under 21 dB. More
+  haze sits outside the mapped region. The sharpest interior views score
+  lower even after alignment (`00100`: 30.4 -> 26.9 dB).
+- **Net: a modest, mixed gain, not a step change.** The through-the-glass
+  views remain the weakest part, which training settings alone have now
+  been shown not to fix.
+
+## Run 2b findings (2026-10-08)
+`run2b` = run 2a's settings at full size (2560x1440). Rerun as job 12679934:
+30,000 steps, exit status 0, 846,007 Gaussians, 831,880 exported. Graded by
+`splat_report.py` from `out/splatfacto/run2b/`. Same 28 held-out views.
+
+**Full size gave no measurable gain over half size, at 4.7 times the job
+time** (just under 9 h against run 2a's 1 h 54 min). The image size stays
+1280x720.
+
+`ns-eval` scored run 2b at 2560x1440 and the others at 1280x720, so its own
+figures do not compare. All three were rescored at one size from the saved
+real-vs-render pairs (by hand, not in `splat_report.py`; the per-view numbers
+are in `out/splatfacto/run2b/export/report/like_for_like.json`).
+
+| 28 held-out views | Run 1 | Run 2a | Run 2b |
+|---|---|---|---|
+| As `ns-eval` scored it: PSNR / SSIM / LPIPS | 22.00 / 0.808 / 0.348 | 20.48 / 0.762 / 0.333 | 20.55 / 0.832 / 0.387 |
+| At half size: PSNR | 22.00 | 20.48 | 20.62 |
+| At half size: PSNR, colour-corrected | 23.04 | 22.23 | 22.27 |
+| At half size: SSIM (torchmetrics) | 0.798 | 0.751 | 0.758 |
+| At full size, runs 1 and 2a enlarged 2x: PSNR | 21.89 | 20.49 | 20.55 |
+| At full size: PSNR, colour-corrected | 22.92 | 22.23 | 22.18 |
+| Half size, render aligned to its photo, colour-corrected (24 views) | 24.22 | 24.56 | 24.44 |
+| Interior 22 views, half size: PSNR | 23.42 | 21.79 | 21.94 |
+| Through-the-glass 6 views, half size: PSNR | 16.78 | 15.68 | 15.76 |
+| Seven foreground-blob views, half size: PSNR | 19.76 | 20.30 | 20.57 |
+| Views at 25 dB or above | 9 | 1 | 1 |
+| Render-to-photo offset, median px at half size | 0.65 | 2.16 | 2.0 |
+
+| Splat file | Run 1 | Run 2a | Run 2b |
+|---|---|---|---|
+| Gaussians exported | 1,006,172 | 898,595 | 831,880 |
+| Training-view PSNR | 29.0 | 31.8 | 31.4 |
+| Held-out PSNR within 0.25 dB of its best from step | 11,000 | 15,000 | 10,000 |
+| Needle-shaped splats | 5.4% | 0.0% | 0.0% |
+| Splats in walked air: count / visual weight | 0.45% / 15.9% | 0.24% / 6.0% | 0.08% / 5.0% |
+| Floaters: count / visual weight | 17.9% / 20.2% | 22.5% / 15.2% | 19.9% / 17.4% |
+| Isolated splats, visual weight | 4.1% | 8.7% | 11.9% |
+| Full box | 37.8 x 39.1 x 26.3 | 32.7 x 35.2 x 26.8 | 50.2 x 56.3 x 37.8 |
+| Floor: cover / tilt | 90.1% / 4.2 deg | 88.9% / 4.7 deg | 89.1% / 5.0 deg |
+| Camera refinement: mean / max | none | 0.12 / 0.56 deg | 0.11 / 0.44 deg |
+| **Verdict** | MARGINAL | MARGINAL | **MARGINAL** |
+
+- **2b against 2a, view by view at half size: +0.14 dB plain (standard error
+  0.13) and +0.03 dB colour-corrected.** Better in 16 of 28 views. Inside the
+  noise.
+- **`ns-eval`'s higher SSIM (0.832) and worse LPIPS (0.387) are size
+  effects.** At the same size SSIM is 0.758 against 0.751.
+- **The full-size render holds no more fine detail than run 2a's render
+  enlarged.** Edge energy relative to the full-size photo: 0.68 for run 2b,
+  0.70 for run 2a enlarged. In full-size crops the two cannot be told apart
+  (`report/detail.jpg`). The photos are the limit: they are video frames, soft
+  from motion and compression, so the extra pixels carry little.
+- **What differs from 2a.** Better: the green cast is gone from `00140`,
+  `00150` and `00170` (`00140` +2.0 dB, `00150` +0.8), and the teal patch on
+  `00070` is smaller. Worse: `00220`'s foreground blob is larger and darker
+  (-1.3 dB), `00393` has new junk at the top (-1.4), `00363` gains a grey
+  smear over its right half. The cage ghost on `00120` remains. More haze far
+  out: the full box is half as large again.
+- **The through-the-glass views are unchanged**: 15.8 dB, all six bad.
+- **The last 20,000 steps bought nothing on held-out views**: the score was
+  within 0.25 dB of its best from step 10,000, which is 6.8 of the 8.4 hours.
+- The like-for-like aligned figures here (24.22 / 24.56 for runs 1 / 2a over
+  24 views) differ a little from the 2026-10-05 hand check (23.64 / 24.00 over
+  25 views): different crop and matcher, same direction and size of gap.
+- Comparison sheets, photo beside all three runs:
+  `out/splatfacto/run2b/export/report/compare_1.jpg` to `compare_4.jpg`.
+
+## Run 3 (planned 2026-10-05; approved and prepared 2026-10-12; not yet run)
+Train on the interior photos only. Same photos, same camera poses, no new
+frames and no SfM redo: the only change is which photos training uses. Added
+on 2026-10-12: a fourth arm on a denser photo set cut from the same stretch
+of video, which does need its own camera solve.
+
+Decided by the user on 2026-10-12: the interior-only scope is accepted (see
+Costs and limits); all three settings arms run; a denser set at about five
+photos a second is added; everything goes up in one CARC visit, together with
+the augment full run.
+
+### Why (measured 2026-10-05 on `interior400` and the run 1 / 2a splats)
+- **The registered frames are two groups.** Frames 31-252 (222 frames, video
+  124-227 s) are the walk inside the arena, cameras pitched 10 to 25 degrees
+  down. Frames 356-404 and 420-428 (58 frames, 276-310 s) come after the
+  103-frame stretch that never registered; their cameras point level or up
+  (median pitch -4 and +13 degrees) through the polycarbonate.
+- **The two groups are barely tied together.** Of 30,937 SfM points, 218 are
+  seen by both groups; 3,927 are seen only by the late group. The late
+  cameras' positions relative to the interior hang on those 218 points.
+- **The late group carries most of the foreground junk.** Of the visual
+  weight of the splats sitting in the walked air, 77% is next to the 58 late
+  cameras in run 1 and 90% in run 2a. They are 21% of the cameras.
+- **Their held-out views are the bad ones**: 16.8 dB mean in run 1 against
+  23.4 dB for the interior views. Run 2a showed training settings do not fix
+  them.
+- This is evidence by association: it shows where the junk sits, not that
+  removing the late frames cleans the interior views. Arm 3a is the test.
+- **Training uses 200 of the video's 12,702 frames**, which the user
+  questioned (2026-10-12). Where they go: 6,000 frames are the interior
+  stretch (110-310 s; the rest is floor close-ups and ceiling);
+  `process_video.py` kept one sharp frame per 0.47 s, 428; SfM placed 280; 222
+  of those are inside the arena; 22 are held out. Only the 0.47 s spacing was
+  a choice, and it is at the sparse end. Arm 3d tests it.
+
+### Design
+- **A second dataset file beside the original**,
+  `data/processed/interior400/transforms_interior.json`, passed to
+  `ns-train` as `--data`. nerfstudio accepts a `.json` there and honours
+  `train_filenames` / `val_filenames` / `test_filenames` in it (all three
+  are required; training reads `val`, `ns-eval` reads `test`).
+  - `frames`: all 280, unchanged. nerfstudio orients and scales the scene
+    from every frame listed, before applying the lists, so keeping all 280
+    keeps run 1's model frame exactly. Deleting the late frames from the
+    file instead changes the frame (scale 0.2199 against 0.2103).
+  - `train_filenames`: the 200 frames of 31-252 that run 1 trained on.
+  - `val_filenames` = `test_filenames`: run 1's 22 interior held-out frames
+    (`00040`, `00050` ... `00250`). The 6 late held-out views are dropped.
+  - `ply_file_path`: `sparse_pc_interior.ply`, the 27,010 SfM points seen by
+    at least one interior frame. The 3,927 late-only points are not seeded.
+- Checked in a scratch copy with nerfstudio's own dataparser: the file
+  loads, the three lists give 200 / 22 / 22 images from `images_2/`, and the
+  model frame matches run 1's `dataparser_transforms.json` exactly.
+- **Arms**, parallel jobs at 1280x720, 30,000 steps,
+  `color-corrected-metrics` off (`splat_report.py` computes it):
+
+  | Label | Dataset | Settings | Compares with | Why |
+  |---|---|---|---|---|
+  | `run3a` | `interior400`, pinned lists | run 1's defaults | run 1 | Isolates the photo-list change. No colour or pose effect on the scores |
+  | `run3b` | same | 3a + scale regularization | `run3a` | The one run 2 setting with a clear gain and no scoring side effect |
+  | `run3c` | same | run 2a's three settings | `run3b`, run 2a | Whether pose refinement and the bilateral grid help once the late frames are gone. Needs colour- and alignment-corrected scoring |
+  | `run3d` | `interior_dense` | 3b's | `run3b` | Whether more of the video helps. Isolates photo density |
+
+- Each arm should take about as long as run 1 (11 minutes of training);
+  `submit_run3.sh` asks for 2 hours on the `sbatch` line, not `train.job`'s 12.
+
+### Baselines on the 22 interior held-out views
+| | Run 1 | Run 2a |
+|---|---|---|
+| PSNR, mean | 23.42 dB | 21.79 dB |
+| PSNR, colour-corrected | 24.31 dB | 23.19 dB |
+| Views at 25 dB or above | 9 | 1 |
+| Seven foreground-blob views (`00060`, `00110`, `00120`, `00140`, `00150`, `00180`, `00220`), mean | 19.76 dB | 20.30 dB |
+| Other 15 views, mean | 25.1 dB | 22.5 dB |
+| Splats in walked air, visual weight | 15.9% | 6.0% |
+
+### What counts as success (fixed before the run; rules of thumb)
+For `run3a` against run 1, plain PSNR, same 22 photos:
+1. The seven blob views gain at least 1.0 dB on average (to 20.8 dB or more).
+2. The splats in walked air carry at most half of run 1's visual weight
+   (8% or less), measured against all 280 cameras and the original cloud so
+   the yardstick is run 1's.
+3. The other 15 views do not lose more than 0.5 dB on average.
+
+All three met: interior-only becomes the dataset for later runs (image size
+is settled: half, see Run 2b findings). Not met: the
+late frames were not the cause, and the next lever is denser SfM or masks.
+The GO / MARGINAL / NO-GO bars stay as they are, applied to the 22 views.
+
+For `run3d` against `run3b`, plain PSNR on the same 22 photos (fixed
+2026-10-12): a clear gain is 1.0 dB or more on average, a modest one 0.5 to
+1.0, and under 0.5 is none. Runs 2a and 2b, which should score alike, differ
+by 0.14 dB with a standard error of 0.13.
+
+### Costs and limits
+- **The model loses what only the late frames saw**: the upper cage, the
+  roof and the pit seen looking up and out. Accepted by the user on
+  2026-10-12. The earlier splats, which have them, are kept.
+- 200 training photos instead of 252.
+- Scores over all 28 views (runs 1, 2a) do not compare with scores over 22.
+  Comparisons use the 22.
+- The camera poses are unchanged, so any pose error inside the interior
+  group stays.
+
+### The denser set, `interior_dense` (built 2026-10-12)
+`scripts/interior_dataset.py dense`. The same stretch of video, 110 to 232 s,
+at five photos a second: every third frame scored for sharpness, the sharper
+of each pair kept.
+
+| | `interior400` | `interior_dense` |
+|---|---|---|
+| Video stretch | 110-310 s | 110-232 s |
+| Spacing | 0.47 s | 0.2 s |
+| Photos extracted | 428 | 555 (533 new + the 22 held-out) |
+| Placed by SfM | 280 (65.4%) | 532 (95.9%) |
+| Training / held out | 252 / 28 (run 3: 200 / 22) | 510 / 22 |
+| SfM points | 30,937 (27,010 seen from inside) | 74,003 |
+| Reprojection error | 0.935 px | 0.988 px |
+| Images per point | 4.93 | 6.32 |
+| `sfm_report.py` | MARGINAL | **GO** |
+| Wall clock | 17.2 min | 33 min |
+
+- **Same test photos.** Run 1's 22 interior held-out photos are copied in as
+  files, at their place in the walk, and SfM placed all 22. Their half-size
+  versions are pixel-identical to the ones runs 1 and 2 were scored on.
+- **The test is not made easier.** A new photo closer in time to a held-out
+  photo than that photo's nearest training neighbour in the interior-only set
+  is left out (77 of 610 picks). Checked from the written lists: the nearest
+  training photo is as far as today's for 11 held-out photos and farther for
+  the other 11.
+- **It reaches further than `interior400` did.** Placed from 114.7 s on;
+  `interior400` placed nothing before 124 s. The first 23 photos (110-114 s)
+  form their own 20-photo fragment and are not used.
+- **COLMAP's model 0 is not the largest one.** It numbers sub-models in the
+  order it starts them. Here model 0 was a two-photo false start and the
+  532-photo model was number 1, so the pipeline, which reads `sparse/0`,
+  reported 2 of 555 and the gate said NO-GO. `process_video.py` now moves the
+  largest sub-model to `sparse/0` before the final bundle adjustment
+  (`largest_first`). This dataset was finished from the solve that had
+  already run: the swap, the bundle adjustment and the dataset files, with
+  the same functions, not a second 33-minute solve.
+- **New model frame.** Its own position and scale, so picture scores on the
+  22 photos compare with the other arms directly and floater figures only
+  roughly.
+- Where each `interior400` photo sits in the video was not stored. It is made
+  again from the blur scores and checked against the three statistics in
+  that set's `run.json`, which match exactly.
+
+### Steps
+1. ~~Dataset file (local).~~ Done 2026-10-12: `interior_dataset.py lists`.
+   280 frames listed; 200 / 22 / 22; held-out names equal run 1's first 22;
+   nerfstudio loads all three splits; model frame identical to run 1's;
+   27,010 seed points.
+2. ~~Denser set (local).~~ Done 2026-10-12, see above.
+3. ~~Job scripts.~~ Done 2026-10-12. `train.job` takes an optional
+   `TRANSFORMS` file name (default: today's behaviour). `submit_run3.sh`
+   checks the inputs are on CARC, skips labels that exist, skips `run3d`
+   with a message if its photos are missing, and submits the four arms with
+   a 2-hour limit. Dry-run of the real scripts against stand-in commands;
+   nerfstudio's own parser accepts each arm's arguments.
+4. ~~Report.~~ Done 2026-10-12. `splat_report.py` reads the held-out names
+   from the dataset file the run trained from when it pins them, and adds a
+   per-view score with the render laid over its photo first (SIFT matches,
+   homography, then colour correction), which is what makes a
+   camera-refined arm comparable. Rerun on runs 1, 2a and 2b: no existing
+   figure moved. Over the 24 views matched in all three: 24.24 / 24.57 /
+   24.36 dB.
+5. **User.** Commit and push; copy `splatting/out/carc-run3-inputs.tar.gz`
+   (60 MB: the two interior files, and the denser set's half-size photos,
+   poses and seed points) to CARC and unpack it; one submit command; bring
+   the four run folders back. Commands in `carc.md`, Run 3.
+6. **Grade.** Report per arm, comparison sheets against run 1 and 2a on the
+   22 views, the success criteria above, `splat_clean.py` on the best arm,
+   docs.
+
+### After run 3, not part of it
+- ~~Denser frames.~~ Moved into run 3 as arm `run3d` (2026-10-12).
+- **Masks** for the background seen through the walls. splatfacto applies a
+  per-image mask to the loss; making the masks is the work.
+- ~~Full size.~~ Dropped 2026-10-08: `run2b` showed no gain (Run 2b findings).
+- **Dropping blurred or shadowed interior frames.** Not in run 3, to keep
+  one change per arm.
 
 ## Risks to reconstruction quality
 - **Arena surfaces are adversarial for SfM.** Painted steel floor is
@@ -378,13 +680,16 @@ underlying trap is still on disk.
 
 ## Current state
 - `splatting/` holds `requirements.txt`, `mds/{AGENTS,context,carc}.md`,
-  `scripts/{process_video,sfm_report}.py`, `scripts/carc/` (Phase 2 remote
-  ops), and `data/`.
+  `scripts/{process_video,sfm_report,interior_dataset,splat_report,splat_clean}.py`,
+  `scripts/carc/` (Phase 2 remote ops), and `data/`.
 - `data/` is git-ignored (`.gitignore` line 221), so processed runs stay out of
   version control. `mds/` is tracked, matching `vision/mds/`.
-- `data/processed/interior400/` holds the one usable dataset: 428 extracted
-  frames, 280 posed, ~300 MB including the 2x/4x/8x downscales. Run 1 was
-  trained on it.
+- `data/processed/interior400/` holds the dataset runs 1 and 2 trained on:
+  428 extracted frames, 280 posed, ~300 MB including the 2x/4x/8x
+  downscales. Beside its `transforms.json` sit `transforms_interior.json`
+  and `sparse_pc_interior.ply`, run 3's interior-only lists and seed points.
+- `data/processed/interior_dense/` holds run 3's denser set: 555 extracted
+  frames, 532 posed, 730 MB with the COLMAP files.
 - `out/` (git-ignored) holds run 1 as copied down from CARC by hand:
   `out/splat.ply`, `out/splatfacto/2026-09-27_171857/` (config, checkpoint,
   tfevents), `out/report/` from `splat_report.py`, and `out/splat_clean.ply`
@@ -414,11 +719,12 @@ underlying trap is still on disk.
    limit at step 10,000 (job 12658962). `train.job` now asks for 12 hours
    and `submit_run2.sh` skips runs that already exist; `run2b` is to be
    resubmitted after moving its partial folder aside. See Run 2 timing.
-5. **Background for run 3, if needed.** The findings point at the through-the-glass
-   views and the foreground floaters, not the arena interior. Run 2 covers
-   the train-only options aimed at the floaters. Front-half options, which
-   need SfM redone and are aimed at the through-the-glass views: exclude or mask
-   that stretch (roughly `--start 110 --end 228`), or raise density on the
-   segments that did register. A train-only run keeps the same 28 held-out
-   views, so it compares directly with run 1. Redoing SfM changes the frame
-   set, and with it the held-out views.
+   Status 2026-10-08: the rerun finished (job 12679934) and is graded.
+5. **Run 3 is approved and prepared, not yet run: see Run 3.** Four arms:
+   three on the interior photos only (frames 31-252, through a second
+   dataset file with pinned photo lists, no SfM redo) and one on a denser
+   photo set of the same stretch. Everything is tested locally; the user
+   commits, copies one 60 MB archive to CARC and submits
+   (`scripts/carc/submit_run3.sh`).
+6. ~~Grade `run2b`.~~ Done 2026-10-08: MARGINAL, no gain from full size.
+   Later runs stay at 1280x720. See Run 2b findings.
