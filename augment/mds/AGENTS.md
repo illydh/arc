@@ -24,7 +24,7 @@ scripts/colorize.py  colours a clip's plate, or its robot cut-outs, with the ima
 scripts/compose.py   robots onto the coloured plates -> labelled images, colour and grey
 scripts/augment_report.py  grades a composed run, GO / MARGINAL / NO-GO
 scripts/classes.py   the detector's class ids, written into every label file
-scripts/carc/        setup_env.sh, generate.job for CARC; stage.sh, fetch.sh run on the Mac
+scripts/carc/        setup_env.sh, generate.job, combat.job for CARC; stage.sh, fetch.sh run on the Mac
 mlx/                 requirements.txt + .venv for the Mac-only image model runtime (mflux)
 out/<run>/           compose.py and augment_report.py output -- git-ignored:
   colour/ grey/        each images/, labels/, data.yaml: ready to train on
@@ -142,8 +142,11 @@ Nothing is used until it is listed by hand in `combat.SINGLES` or
 `combat.PAIRS`, with its name corrected there if the automatic one is wrong.
 Then `colorize.py poses` colours what is listed, `colorize.py newbots` draws
 the robots of `robots.NEW_ROBOTS`, and `compose.py --combat` composes the
-three combat kinds. The model drew legs on a robot until told it is a heavy
-wheeled machine and not a toy; look at every new-robot sheet.
+three combat kinds. A real pair's two robots are never composed together:
+one keeps its contact pose and meets a robot from another fight, so no image
+repeats a match-up from the footage. The model drew legs on a robot until
+told it is a heavy wheeled machine and not a toy; look at every new-robot
+sheet. `stage.sh combat` packs what CARC needs for `combat.job`.
 
 Robot identities are in `scripts/robots.py`: the rule that splits each clip's
 two robots, the frames where that rule was wrong (`SWAPPED`, `UNNAMED`), the

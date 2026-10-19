@@ -214,6 +214,11 @@ for RGBTrack 6D pose testing.
 - Robots come from two sources: real cut-outs from the clips, coloured by the
   model, and the Gigabyte mesh. The two robots in an image always come from
   different fights, so they are never the same robot twice.
+- **Match-ups are random, not the footage's** (user, 2026-10-18: the goal is
+  "pairing up random combinations of robots against each other"). The combat
+  trial kept each real touching pair together, so 39% of its images repeated
+  the four match-ups filmed. A robot from a real pair now keeps its contact
+  pose and meets a robot from another fight (see Random match-ups).
 - Keep the real camera view. The image model adds colour, new robots and
   combat effects; it does not invent whole scenes. Free text-to-image is not
   used: wrong viewpoint, no labels.
@@ -870,6 +875,45 @@ finds least, are mostly Mammoth. Reported, not judged.
 - Pose colours come from the Mac's 4-bit build; a CARC run would repaint
   them with the full model.
 
+### Random match-ups (2026-10-18)
+The trial's "pair" images were the real pairs as filmed: a fight4 pair was
+always Tazbot against Whiplash. The user wanted random match-ups, so the kind
+is now `contact`:
+- One robot of a real pair keeps its contact pose; the other is dropped. A
+  cut-out of a robot from another fight is stood where the dropped one stood,
+  sized for that row, then moved towards the seam between the two until it
+  covers at least 60% of it (`compose.meet`). The seam is the dropped robot's
+  pixels within 20 px of the kept one's closest approach. Where the dropped
+  robot was in front, the kept robot's outline is cut away along that seam,
+  and the new opponent hides the cut.
+- The new opponent obeys run1's rule: at most `MOVE` from where it was cut.
+- The two outlines of a real pair are 0 px apart at the median (90th
+  percentile 14 px), so a seam always exists.
+- A drawn Chopper or OverKill no longer meets fight2's robot, which may be
+  the same machine.
+- The report now counts match-ups and the share of two-robot images whose
+  two robots met in the footage (`AS_FILMED_MAX = 0.05`). Kraken against
+  Tazbot (fight1) is the only one that can recur, by chance.
+
+Recomposed from the trial's sprites, no model run: `augment/out/combat-check/`,
+1,000 images, **verdict GO**, no warnings.
+
+| | Trial | Check |
+|---|---|---|
+| Contact images | 393 | 393 |
+| Match-ups among them | 4 | 30 |
+| ... as filmed | 100% | 1.8% |
+| All two-robot images, as filmed | 39.3% | 0.7% |
+| Two-robot images with boxes touching | 0.68 | 0.69 |
+| Box width against real robots | 0.88 | 0.90 |
+| Detector as provided, robots found (300 images) | 0.69 | 0.59 |
+
+- Looked at as 16 close crops: the robots meet edge to edge or overlap,
+  nearer one in front. On one of the 16 the kept robot's cut edge still
+  shows as a straight line beside its new opponent.
+- The detector finds robots from a pair less often once their opponent is
+  someone else (0.53, was 0.74). Reported, not judged.
+
 ## Steps
 Done so far: vault documentation, inputs checked, scaffold, real material
 from the clips (five plates, 170 labelled frames, 315 cut-outs), and three
@@ -886,7 +930,8 @@ Current plan (approved 2026-10-04): a bulk `non-nemesis` set on CARC.
 | 3 | Commit and push `augment/`; copy inputs to CARC | Mac, the user | Handed over 2026-10-04: exact commands in `carc.md`. The upload was rehearsed locally (392 files, 80 MB) |
 | 4 | CARC setup and smoke run: every plate, one cut-out sheet per robot, 50 images | CARC, the user | Run 2026-10-05, verdict MARGINAL: the job works, the cut-outs are right, three of four plates were wrong. Fixed on the Mac the same day. No second smoke run: the job gates plates itself (2026-10-12). See CARC smoke run |
 | 5 | Full run, about 3,000 images, graded by `augment_report.py` | CARC, the user | Done 2026-10-15: `out/run1`, verdict GO. See Full run |
-| 6 | Combat trial: real combat poses and new robots, 1,000 images | Mac | Done 2026-10-15: `out/combat-trial`, verdict GO. Scaling up waits on the user's look. See Combat trial |
+| 6 | Combat trial: real combat poses and new robots, 1,000 images | Mac | Done 2026-10-15: `out/combat-trial`, verdict GO. Match-ups made random 2026-10-18: `out/combat-check`, GO. See Combat trial |
+| 7 | Combat set, 3,000 images, full model (`combat.job`) | CARC, the user | Handed over 2026-10-18: `carc.md` step 7. Not yet run |
 
 What the full run is to produce:
 - About 3,000 images at 1440x762, each with a grey copy.

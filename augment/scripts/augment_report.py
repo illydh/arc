@@ -11,6 +11,7 @@ from detect.blobs import arena_mask  # noqa: E402
 
 import colorize  # noqa: E402
 import compose  # noqa: E402
+import robots  # noqa: E402
 from classes import NAMES, NON_NEMESIS  # noqa: E402
 
 AUGMENT = ROOT / "augment"
@@ -37,6 +38,10 @@ SIZE_RATIO = (0.6, 1.6)  # median box width against a real robot's at the same r
 GRID = (6, 3)
 COVERAGE_MIN = 0.6      # share of the floor grid with a robot in it; runs of 500+
 DUPLICATE_MAX = 0.01
+# The match-ups filmed. Images pair robots from different fights, so only
+# Kraken against Tazbot (fight1; Tazbot's cut-outs are fight4's) recurs, by chance.
+FILMED = {frozenset(v[1:]) for v in robots.CLIPS.values()} | {frozenset(("kraken", "tazbot"))}
+AS_FILMED_MAX = 0.05    # share of two-robot images whose two robots met in the footage
 DETECTOR_SAMPLE = 300
 SHEETS, PER_SHEET = 4, 12
 
@@ -256,6 +261,10 @@ def main(run):
         sources[name] = sources.get(name, 0) + 1
     two = [it for it in items if len(it["robots"]) == 2]
     contact = sum(compose.touches(*[r["bbox"] for r in it["robots"]]) for it in two) / max(len(two), 1)
+    match_ups = [frozenset(r["source"].split(":")[1] for r in it["robots"]) for it in two]
+    as_filmed = sum(m in FILMED for m in match_ups) / max(len(two), 1)
+    if as_filmed > AS_FILMED_MAX:
+        soft.append(f"{as_filmed:.2f} of two-robot images are a match-up from the footage")
 
     sheets(run, items, out)
     if combat:
@@ -265,6 +274,7 @@ def main(run):
     report = {"run": run.name, "verdict": verdict, "failed": hard, "warnings": soft, "images": n,
               "kinds": {k: round(v, 3) for k, v in kinds.items()},
               "two_robot_images_with_boxes_touching": round(float(contact), 2),
+              "match_ups": len(set(match_ups)), "two_robot_images_as_filmed": round(as_filmed, 3),
               "label_errors": errors[:20], "loads_in_ultralytics": loads, "plates": plates,
               "plates_set_aside": set_aside,
               "width_against_real": round(ratio, 2), "floor_coverage": round(coverage, 2),

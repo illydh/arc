@@ -56,10 +56,18 @@ STOOD_NEAR = 90
 # slid this far, further along a row than across rows, and is resized by the
 # real robots' size at the new row.
 MOVE = (220, 90)
-# The combat trial: a real pair of robots touching, moved as one piece; one
-# robot from a set-aside combat frame (stopped, flipped, wrecked or lifted)
-# with another robot; a robot the image model drew, with another robot.
-COMBAT_KINDS = {"pair": 0.4, "pose": 0.3, "new": 0.3}
+# The combat set: a robot in contact, from a real pair of touching robots,
+# against a robot from another fight; one robot from a set-aside combat frame
+# (stopped, flipped, wrecked or lifted) with another robot; a robot the image
+# model drew, with another robot.
+COMBAT_KINDS = {"contact": 0.4, "pose": 0.3, "new": 0.3}
+# A real pair's opponent is replaced, so the match-ups are not the footage's.
+# The new opponent stands where the old one did and is moved towards the seam
+# between the two, the old opponent's pixels within this many px of the kept
+# robot's closest approach, until it covers this share of it: where the old
+# one was in front, the kept robot's outline is cut away along that seam.
+SEAM = 20
+SEAM_COVER = 0.6
 # Measured on fight4. A frame differs from the plate on untouched floor by
 # 10.8 grey levels (std): the plate is a median and has no sensor noise, so a
 # composite needs it put back. A render is far sharper than the footage
@@ -257,6 +265,46 @@ def slide_group(group, x, y, width):
         r["alpha"] = cv2.resize(r["alpha"], None, fx=s, fy=s, interpolation=cv2.INTER_LINEAR)
 
 
+def footprint(robot, shape):
+    h, w = robot["alpha"].shape
+    x0, y0 = robot["x0"], robot["y0"]
+    xa, ya, xb, yb = max(x0, 0), max(y0, 0), min(x0 + w, shape[1]), min(y0 + h, shape[0])
+    m = np.zeros(shape, np.uint8)
+    if xa < xb and ya < yb:
+        m[ya:yb, xa:xb] = robot["alpha"][ya - y0:yb - y0, xa - x0:xb - x0] > 0.5
+    return m
+
+
+def centre(m):
+    ys, xs = np.nonzero(m)
+    return xs.mean(), ys.mean()
+
+
+def meet(robot, kept, gone, shape, width):
+    """Stand a cut-out in place of `gone`, the robot `kept` was filmed
+    against, then move it towards the seam between those two until it covers
+    the seam. False if it cannot without going further than MOVE from where
+    it was cut."""
+    hx, hy = stand(robot)
+    slide(robot, *stand(gone), width)
+    near, there, own = footprint(kept, shape), footprint(gone, shape) > 0, footprint(robot, shape)
+    if not (near.any() and there.any() and own.any()):
+        return False
+    dist = cv2.distanceTransform(1 - near, cv2.DIST_L2, 3)
+    seam = there & (dist <= dist[there].min() + SEAM)
+    (gx, gy), (sx, sy), (rx, ry) = centre(there), centre(seam), centre(own)
+    x0, y0 = robot["x0"] + gx - rx, robot["y0"] + gy - ry
+    for f in np.linspace(0, 1, 5):
+        robot["x0"], robot["y0"] = int(x0 + f * (sx - gx)), int(y0 + f * (sy - gy))
+        x, y = stand(robot)
+        if abs(x - hx) > MOVE[0] or abs(y - hy) > MOVE[1]:
+            continue
+        cover = cv2.dilate(footprint(robot, shape), np.ones((5, 5), np.uint8))[seam]
+        if cover.mean() >= SEAM_COVER:
+            return True
+    return False
+
+
 def paste(canvas, robot):
     h, w = robot["alpha"].shape
     x0, y0 = robot["x0"], robot["y0"]
@@ -364,20 +412,29 @@ def main(run, n, seed, start, combat=False):
         # left only half the images with two robots
         kind = kinds[k - start]
         robots = []
-        if kind == "pair":
-            a, b = pairs[rng.integers(len(pairs))]
-            robots = [cutout_robot(c, st["level"] / level[c["clip"]]) for c in (a, b)]
+        if kind == "contact":
+            pair = pairs[rng.integers(len(pairs))]
+            robots = [cutout_robot(c, st["level"] / level[c["clip"]]) for c in pair]
             hx = (min(r["x0"] for r in robots) + max(r["x0"] + r["alpha"].shape[1] for r in robots)) / 2
             hy = max(r["y0"] + r["alpha"].shape[0] for r in robots)
             x, y = hx + rng.uniform(-MOVE[0], MOVE[0]), hy + rng.uniform(-MOVE[1], MOVE[1])
             if not (0 <= x < w and 0 <= y < h and st["floor"][int(y), int(x)]):
                 continue
             slide_group(robots, x, y, width)
+            kept, gone = robots if rng.random() < 0.5 else robots[::-1]
+            c = pick(other_than=pair[0]["clip"])
+            second = cutout_robot(c, st["level"] / level[c["clip"]])
+            if not meet(second, kept, gone, (h, w), width):
+                continue
+            robots = [kept, second]
         elif kind == "new":
             names = sorted(newbots)
-            views = newbots[names[rng.integers(len(names))]]
+            name = names[rng.integers(len(names))]
+            views = newbots[name]
             y, x = st["points"][rng.integers(len(st["points"]))]
-            first, first_clip = newbot_robot(views[rng.integers(len(views))], width, int(x), int(y), rng), None
+            # fight2's small robot is Chopper or OverKill, so it may be this one
+            first_clip = "fight2" if name in ("chopper", "overkill") else None
+            first = newbot_robot(views[rng.integers(len(views))], width, int(x), int(y), rng)
             # drawn whole, so kept whole: by the far wall a tall one ran off the top
             if first["y0"] < 0 or first["x0"] < 0 or first["x0"] + first["alpha"].shape[1] > w:
                 continue
