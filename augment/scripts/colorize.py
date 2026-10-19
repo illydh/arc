@@ -17,6 +17,7 @@ AUGMENT = ROOT / "augment"
 REAL = AUGMENT / "data" / "real"
 PLATES = AUGMENT / "data" / "plates"
 CUTOUTS = AUGMENT / "data" / "sprites" / "cutouts"
+POSES = AUGMENT / "data" / "sprites" / "combat"
 
 # FLUX.2 klein 4B. On a CUDA machine (CARC) it runs at full precision through
 # diffusers and stays loaded between calls. Its two large parts (7.8 + 8.0 GB)
@@ -25,6 +26,7 @@ CUTOUTS = AUGMENT / "data" / "sprites" / "cutouts"
 # The prompts were tuned on the 4-bit build: look at what the full one paints.
 KLEIN = "black-forest-labs/FLUX.2-klein-4B"
 MFLUX = AUGMENT / "mlx" / ".venv" / "bin" / "mflux-generate-flux2-edit"
+MFLUX_T2I = AUGMENT / "mlx" / ".venv" / "bin" / "mflux-generate-flux2"
 MFLUX_MODEL = "RunPod/FLUX.2-klein-4B-mflux-4bit"
 MFLUX_BASE = "flux2-klein-4b"
 _klein = None
@@ -100,6 +102,28 @@ INVENTED_PROMPT = (
     "orange, yellow, green, blue, white or black. Tyres are black rubber. Keep each robot's "
     "shape, position and details exactly as they are, and keep the background plain grey."
 )
+# Robots with no footage are drawn whole by the model, nine views to a sheet,
+# and cut out of it. The camera's height and angle are asked for in words.
+NEWBOTS = AUGMENT / "data" / "sprites" / "newbots"
+NEWBOT_PROMPT = (
+    "Photograph of nine copies of the same heavy BattleBots fighting robot, a real metal machine "
+    "built for an arena, standing directly on a plain, flat, light grey floor in three rows of "
+    "three, well apart from each other. Every copy is seen from a high camera looking down at it "
+    "at about 50 degrees, each turned to face a different direction. The robot is {description}. "
+    "It is a low, heavy vehicle that drives on the floor, with no legs, not a humanoid and not a "
+    "toy. Realistic photograph, sharp focus, even overhead lighting. No mats, platforms or "
+    "squares under the robots, no text, no people, nothing else on the floor."
+)
+# The model does not keep to a grid, so robots are found wherever they stand:
+# anything that differs from the smooth grey floor around it by this much,
+# in a patch of at least this share of the sheet. A robot touching the sheet's
+# edge is cut off and dropped, and so is an outline that fills its own box
+# (a mat or a square, not a robot).
+NEWBOT_DIFF = 28
+NEWBOT_SHARE = (0.006, 0.12)
+NEWBOT_EDGE = 6
+NEWBOT_BOXY = 0.9
+
 # A robot keeps the detail the camera recorded and takes its colour from the
 # model, toned down to sit with the calibrated floor. Its overall brightness
 # moves halfway to the model's: with the camera's brightness kept outright, a
@@ -108,14 +132,16 @@ ROBOT_CHROMA = 0.8
 
 
 def generate(images, prompt, size, seed, out):
-    """The one place a model is called. Swap this to change model. A picture
-    already generated is not generated again: on the Mac each takes minutes."""
+    """The one place a model is called. Swap this to change model. With no
+    pictures it draws from the prompt alone. A picture already generated is
+    not generated again: on the Mac each takes minutes."""
     if out.exists():
         return
     import torch
     if not torch.cuda.is_available():
-        subprocess.run([str(MFLUX), "--model", MFLUX_MODEL, "--base-model", MFLUX_BASE,
-                        "--image-paths", *map(str, images), "--prompt", prompt,
+        given = ["--image-paths", *map(str, images)] if images else []
+        subprocess.run([str(MFLUX if images else MFLUX_T2I), "--model", MFLUX_MODEL, "--base-model", MFLUX_BASE,
+                        *given, "--prompt", prompt,
                         "--width", str(size[0]), "--height", str(size[1]),
                         "--steps", "4", "--guidance", "1.0", "--seed", str(seed),
                         "--output", str(out)], check=True)
@@ -125,7 +151,8 @@ def generate(images, prompt, size, seed, out):
         from diffusers import Flux2KleinPipeline
         _klein = Flux2KleinPipeline.from_pretrained(KLEIN, torch_dtype=torch.bfloat16).to("cuda")
     from PIL import Image
-    _klein(image=[Image.open(i).convert("RGB") for i in images], prompt=prompt,
+    given = {"image": [Image.open(i).convert("RGB") for i in images]} if images else {}
+    _klein(**given, prompt=prompt,
            width=size[0], height=size[1], num_inference_steps=4, guidance_scale=1.0,
            generator=torch.Generator("cuda").manual_seed(seed)).images[0].save(out)
 
@@ -200,12 +227,14 @@ def plate(clip, seed):
     print(out / f"plate_color_{seed}.png")
 
 
-def cutouts(clip, sheets, seed):
-    out = CUTOUTS / clip
+def cutouts(clip, sheets, seed, found=None, folder=CUTOUTS):
+    """Colour a clip's cut-outs, run1's calm ones by default, or the combat
+    poses with `found` and `folder`."""
+    out = folder / clip
     out.mkdir(parents=True, exist_ok=True)
     per = GRID * GRID
     by_robot = {}
-    for c in robots.cutouts(clip):
+    for c in robots.cutouts(clip) if found is None else found:
         by_robot.setdefault(c["robot"], []).append(c)
     index = []
     for robot, found in by_robot.items():
@@ -217,7 +246,7 @@ def cutouts(clip, sheets, seed):
             sheet = np.full((CELL * GRID, CELL * GRID), 128, np.uint8)
             placed = []
             for i, c in enumerate(found[s:s + per]):
-                d = REAL / clip
+                d = Path(c.get("dir", REAL / clip))
                 gray = cv2.imread(str(d / "images" / f"{c['frame']:06d}.jpg"), cv2.IMREAD_GRAYSCALE)
                 ids = cv2.imread(str(d / "masks" / f"{c['frame']:06d}.png"), cv2.IMREAD_GRAYSCALE)
                 x0, y0, x1, y1 = c["bbox"]
@@ -255,23 +284,76 @@ def cutouts(clip, sheets, seed):
                 cv2.imwrite(str(out / file), sprite)
                 index.append({"file": file, "clip": clip, "frame": c["frame"], "robot": robot,
                               "paint": "invented" if invented else "livery",
-                              "x0": c["bbox"][0], "y0": c["bbox"][1]})
+                              "x0": c["bbox"][0], "y0": c["bbox"][1], **({"kind": c["kind"]} if "kind" in c else {})})
     (out / "index.json").write_text(json.dumps(index))
     print(f"{clip}: {len(index)} coloured cut-outs -> {out}")
 
 
+def newbots(names, seeds):
+    """Draw each roster robot that has no footage, nine views to a sheet, and
+    cut every clean view out with SAM 2.1 into a sprite."""
+    from ultralytics import SAM
+    sam = SAM(str(AUGMENT / "data" / "weights" / "sam2.1_s.pt"))
+    for name in names:
+        out = NEWBOTS / name
+        out.mkdir(parents=True, exist_ok=True)
+        index = []
+        for seed in seeds:
+            sheet_path = out / f"sheet_{seed}.png"
+            generate([], NEWBOT_PROMPT.format(description=robots.NEW_ROBOTS[name]), (CELL * GRID, CELL * GRID),
+                     seed, sheet_path)
+            sheet = cv2.imread(str(sheet_path))
+            h, w = sheet.shape[:2]
+            gray = cv2.cvtColor(sheet, cv2.COLOR_BGR2GRAY).astype(np.int16)
+            floor = cv2.medianBlur(gray.astype(np.uint8), 61).astype(np.int16)
+            sat = cv2.cvtColor(sheet, cv2.COLOR_BGR2HSV)[:, :, 1]
+            fg = ((np.abs(gray - floor) > NEWBOT_DIFF) | (sat > 60)).astype(np.uint8)
+            fg = cv2.morphologyEx(fg, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
+            n, ids, stats, cents = cv2.connectedComponentsWithStats(fg, 8)
+            blobs = [i for i in range(1, n) if NEWBOT_SHARE[0] <= stats[i, cv2.CC_STAT_AREA] / (h * w) <= NEWBOT_SHARE[1]]
+            if not blobs:
+                continue
+            boxes = [[max(0, stats[i, 0] - 8), max(0, stats[i, 1] - 8), min(w - 1, stats[i, 0] + stats[i, 2] + 8),
+                      min(h - 1, stats[i, 1] + stats[i, 3] + 8)] for i in blobs]
+            r = sam(sheet, verbose=False, bboxes=boxes,
+                    points=[[[int(cents[i][0]), int(cents[i][1])]] for i in blobs], labels=[[1]] * len(blobs))[0]
+            for j, mask in enumerate(r.masks.data.cpu().numpy() > 0 if r.masks is not None else []):
+                ys, xs = np.nonzero(mask)
+                if not len(ys) or ys.min() < NEWBOT_EDGE or xs.min() < NEWBOT_EDGE \
+                        or ys.max() >= h - NEWBOT_EDGE or xs.max() >= w - NEWBOT_EDGE:
+                    continue
+                box_area = (ys.max() - ys.min() + 1) * (xs.max() - xs.min() + 1)
+                if mask.sum() / box_area > NEWBOT_BOXY or not NEWBOT_SHARE[0] <= mask.sum() / (h * w) <= NEWBOT_SHARE[1]:
+                    continue
+                crop = sheet[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+                alpha = mask[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+                # toned down as the coloured cut-outs are, to sit with the floor
+                lab = cv2.cvtColor(crop, cv2.COLOR_BGR2LAB).astype(np.float32)
+                lab[:, :, 1:] = 128 + (lab[:, :, 1:] - 128) * ROBOT_CHROMA
+                sprite = np.dstack([cv2.cvtColor(lab.astype(np.uint8), cv2.COLOR_LAB2BGR), (alpha * 255).astype(np.uint8)])
+                cv2.imwrite(str(out / f"{seed}_{j}.png"), sprite)
+                index.append({"file": f"{seed}_{j}.png", "robot": name, "seed": seed})
+        (out / "index.json").write_text(json.dumps(index))
+        print(f"{name}: {len(index)} views cut out -> {out}")
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("what", choices=("plate", "cutouts"))
-    ap.add_argument("clips", nargs="+")
+    ap.add_argument("what", choices=("plate", "cutouts", "poses", "newbots"))
+    ap.add_argument("clips", nargs="+", help="clips, or for newbots robot names")
     ap.add_argument("--seeds", type=int, nargs="+", default=[3])
     ap.add_argument("--sheets", type=int, default=0,
                     help="cut-outs: at most this many sheets of nine per robot (default: all)")
     args = ap.parse_args()
     # one process for everything asked, so the CUDA model is loaded once
-    for clip in args.clips:
+    if args.what == "newbots":
+        newbots(args.clips, args.seeds)
+    for clip in args.clips if args.what != "newbots" else []:
         for seed in args.seeds:
             if args.what == "plate":
                 plate(clip, seed)
         if args.what == "cutouts":
             cutouts(clip, args.sheets, args.seeds[0])
+        if args.what == "poses":
+            import combat
+            cutouts(clip, 0, args.seeds[0], combat.poses(clip), POSES)
