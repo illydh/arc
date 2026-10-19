@@ -12,10 +12,11 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=illyhoan@usc.edu
 
-# The combat set: robots in real combat (pairs touching, and single robots
-# stopped, flipped or lifted) and roster robots with no footage, drawn by the
-# image model. The Mac trial (augment/out/combat-trial) was made the same way
-# with the 4-bit build; this colours and draws again with the full model.
+# The combat set: robots in real combat (one robot of a touching pair against
+# a robot from another fight, and single robots stopped, flipped or lifted) and
+# roster robots with no footage, drawn by the image model. The Mac check
+# (augment/out/combat-check) was made the same way with the 4-bit build; this
+# colours and draws again with the full model.
 # Needs run1's plates and coloured cut-outs on CARC (generate.job made them)
 # and carc-combat-inputs.tar.gz unpacked (stage.sh combat). From a CARC
 # terminal:

@@ -17,6 +17,10 @@ The user commits, pushes and submits (decided 2026-10-04).
 **A further run needs only steps 1, 2, 5 and 6.** The inputs (step 3) and the
 environment with the model (step 4) are on CARC and need nothing more.
 
+**Next: the combat set, `combat.job` (step 7).** Prepared 2026-10-18, not yet
+run on CARC. It builds on run1's plates and coloured cut-outs, which are
+already there, and needs one more archive from the Mac.
+
 ## What runs where
 
 | Step | Where | Needs |
@@ -27,6 +31,7 @@ environment with the model (step 4) are on CARC and need nothing more.
 | 4. Environment and model download (`setup_env.sh`) | CARC login node, once | internet |
 | 5. Smoke test, then the full run (`generate.job`) | CARC, one A100 | nothing online |
 | 6. Download results (`fetch.sh`) | Mac | one CARC login |
+| 7. The combat set (`stage.sh combat`, `combat.job`) | Mac, then CARC, one A100 | one copy of an archive |
 
 ## 1. Mac: commit and push
 
@@ -176,6 +181,75 @@ tar -cf /home1/illyhoan/arc/augment-run1.tar -C /home1/illyhoan/arc/augment/out 
 tar -xf augment-run1.tar -C augment/out && rm augment-run1.tar
 ```
 
+## 7. The combat set
+
+Robots in combat and roster robots with no footage, 3,000 images by default.
+What it is and how the Mac check came out: `context.md`, Combat trial.
+
+On the Mac, from the repo root. Commit only `augment/`, then write the
+archive of inputs CARC does not have yet (283 files, about 200 MB: the
+reviewed combat frames with their outlines, the pair tracks, the four clips'
+manifests, and the SAM 2.1 checkpoint):
+
+```sh
+git add augment
+git commit -m "augment: random match-ups for robots in contact"
+git push
+./augment/scripts/carc/stage.sh combat
+```
+
+Copy `augment/out/carc-combat-inputs.tar.gz` to `/home1/illyhoan/arc/` on
+CARC by any means, then in a CARC terminal:
+
+```sh
+cd /home1/illyhoan/arc && git pull
+tar -xzf carc-combat-inputs.tar.gz -C /home1/illyhoan/arc/augment && rm carc-combat-inputs.tar.gz
+cd augment/scripts/carc
+sbatch --export=ALL,RUN=combat1 combat.job
+squeue -u $USER
+tail -f /home1/illyhoan/arc/logs/augment-combat-<jobid>.out
+```
+
+What the job does, in order:
+1. Checks the SAM checkpoint is there, and runs the plate gate (run1's seven
+   plates stay; nothing new is painted).
+2. Colours the reviewed combat poses with the full model: about 31 sheets of
+   nine, every fifth sheet of a robot in invented paint.
+3. Draws Diablo, Ginsu, Malice, Chopper and OverKill from words, four sheets
+   of nine views each (`NEWBOT_SEEDS`), and cuts each view out with SAM 2.1.
+4. Composes `N` images in eight processes, grades them, and copies the
+   coloured poses and the drawn robots to `out/<RUN>/sprites/`.
+
+Three kinds of image, 40 / 30 / 30: a robot from a real touching pair against
+a robot from another fight, standing where its real opponent stood; a
+stopped, flipped or lifted robot with a robot from another fight; a drawn
+robot with any other robot. No image repeats a match-up from the footage
+except by chance (the report's `two_robot_images_as_filmed`, bar 0.05).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `RUN` | required | output folder, `augment/out/<RUN>` |
+| `N` | 3000 | number of images |
+| `NEWBOT_SEEDS` | `1 2 3 4` | sheets of nine views drawn for each new robot |
+
+About 50 model runs. How long one takes on the A100 is not measured (run1's
+log was not kept), so the 1.5-hour limit is a guess; a job that runs out is
+re-submitted the same way and skips every picture already made.
+
+Not seen before the results are down: the full model's colours on the poses,
+and its drawings of the five robots from words, which on the Mac took two
+corrections to the prompt (no legs, not a toy). Every sheet comes back under
+`out/<RUN>/sprites/`; a bad one costs a recompose, not a new job.
+
+Bring it back as run1 was (about 2.5 GB):
+
+```sh
+# CARC
+tar -cf /home1/illyhoan/arc/augment-combat1.tar -C /home1/illyhoan/arc/augment/out combat1
+# Mac, after copying augment-combat1.tar into the repo root
+tar -xf augment-combat1.tar -C augment/out && rm augment-combat1.tar
+```
+
 ## What comes back
 
 ```
@@ -188,6 +262,7 @@ out/<RUN>/
   report/plates.jpg                   every plate the run used
   report/cutouts/                     the coloured cut-out sheets, as the model painted them
   report/plates/                      the plates as the model painted them, before the colour correction
+  sprites/combat/ sprites/newbots/    combat.job only: the coloured poses and the drawn robots
 ```
 
 Every box is class `1`, `non-nemesis`. `data.yaml` has no `path`, so
@@ -206,6 +281,7 @@ training set, not a split.
 | Job stalls or fails at the first model call with a hub error | weights not in `/scratch1/illyhoan/hf` (scratch purged, or `setup_env.sh` not run); jobs run offline, so run `setup_env.sh` again |
 | CUDA out of memory | not expected: the model needs about 13 GB and an A100 has 40 |
 | `no coloured plates or cut-outs` from `compose.py` | the colouring step failed; read the log above that line |
+| `no SAM checkpoint` from `combat.job`, or `no combat poses or new robots` from `compose.py` | `carc-combat-inputs.tar.gz` not unpacked into `augment/`, or `colorize.py poses`/`newbots` failed above that line |
 | `stage.sh`: rsync says the destination does not exist | `git pull` on CARC has not created `augment/` yet |
 | `FileNotFoundError` under `augment/data/real` on CARC | `stage.sh` was not run, or `scripts/robots.py` changed since and names frames that were not uploaded; run `stage.sh` again |
 | Log says a plate was `set aside`, or the report lists it under `plates_set_aside` | the gate working: that plate failed a check and nothing was composed on it. To get a replacement, delete its `generated_<seed>.png` on CARC and run again with another seed in `SEEDS` |

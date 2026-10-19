@@ -21,9 +21,10 @@ trap 'rm -f "$LIST"' EXIT
 
 # `stage.sh combat` writes one archive of what the combat set needs on top of
 # what is already on CARC: the reviewed combat frames with their outlines and
-# the pair tracks (combat.py), and the SAM 2.1 checkpoint that cuts the new
-# robots out (a symlink here, so it goes up as the file it points to). Unpack
-# it on CARC with:
+# the pair tracks (combat.py), the clips' manifests the single poses are found
+# from (so CARC searches the same frames), and the SAM 2.1 checkpoint that cuts
+# the new robots out (a symlink here, so it goes up as the file it points to).
+# Unpack it on CARC with:
 #   tar -xzf carc-combat-inputs.tar.gz -C /home1/illyhoan/arc/augment
 if [ "${1:-}" = "combat" ]; then
   "$HERE/../../.venv/bin/python" - "$HERE/.." > "$LIST" 2>/dev/null <<'PY'
@@ -34,7 +35,7 @@ import combat
 data = combat.REAL.parent
 files = {"weights/sam2.1_s.pt"}
 for clip in combat.CLIPS_USED:
-    files.add(f"real/{clip}/combat/tracks.json")
+    files |= {f"real/{clip}/combat/tracks.json", f"real/{clip}/manifest.json"}
     for c in combat.poses(clip):
         d = Path(c["dir"]).relative_to(data)
         files |= {f"{d}/images/{c['frame']:06d}.jpg", f"{d}/masks/{c['frame']:06d}.png"}
