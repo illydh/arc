@@ -149,7 +149,7 @@ def detector_recall(run, items):
     model = YOLO(str(DETECTOR))
     picked = [items[i] for i in np.linspace(0, len(items) - 1, min(DETECTOR_SAMPLE, len(items))).astype(int)]
     found = total = extra = 0
-    by_source = {}
+    by_source, by_kind = {}, {}
     for it in picked:
         boxes = model.predict(str(run / "colour" / "images" / it["image"]), imgsz=640, conf=0.25,
                               verbose=False)[0].boxes.xyxy.tolist()
@@ -159,19 +159,21 @@ def detector_recall(run, items):
             hit = best[0] >= 0.5
             if hit:
                 used.add(best[1])
-            name = r["source"].split(":")[1]
-            by_source.setdefault(name, [0, 0])
-            by_source[name][0] += hit
-            by_source[name][1] += 1
+            kind, name = r["source"].split(":")[:2]
+            for table, key in ((by_source, name), (by_kind, kind)):
+                table.setdefault(key, [0, 0])
+                table[key][0] += hit
+                table[key][1] += 1
             found += hit
             total += 1
         extra += len(boxes) - len(used)
     return {"images": len(picked), "robots": total, "found": found, "extra_boxes": extra,
             "recall": round(found / max(total, 1), 2),
-            "recall_by_robot": {k: round(a / b, 2) for k, (a, b) in sorted(by_source.items())}}
+            "recall_by_robot": {k: round(a / b, 2) for k, (a, b) in sorted(by_source.items())},
+            "recall_by_source": {k: round(a / b, 2) for k, (a, b) in sorted(by_kind.items())}}
 
 
-def sheets(run, items, out):
+def sheets(run, items, out, name="sheet"):
     picked = [items[i] for i in np.linspace(0, len(items) - 1, min(SHEETS * PER_SHEET, len(items))).astype(int)]
     tiles = []
     for it in picked:
@@ -182,7 +184,7 @@ def sheets(run, items, out):
         tiles.append(cv2.resize(img, (480, 480 * img.shape[0] // img.shape[1])))
     for n in range(0, len(tiles), PER_SHEET):
         page = tiles[n:n + PER_SHEET] + [np.zeros_like(tiles[0])] * (-len(tiles[n:n + PER_SHEET]) % 3)
-        cv2.imwrite(str(out / f"sheet_{n // PER_SHEET:02d}.jpg"),
+        cv2.imwrite(str(out / f"{name}_{n // PER_SHEET:02d}.jpg"),
                     np.vstack([np.hstack(page[r:r + 3]) for r in range(0, len(page), 3)]),
                     [cv2.IMWRITE_JPEG_QUALITY, 88])
 
@@ -202,8 +204,11 @@ def main(run):
     if any(v is not True for v in loads.values()):
         hard.append("a folder does not load in Ultralytics")
 
-    kinds = {k: sum(it["kind"] == k for it in items) / n for k in ("two", "one", "empty")}
-    target = {"two": 1 - compose.EMPTY - compose.ONE_ROBOT, "one": compose.ONE_ROBOT, "empty": compose.EMPTY}
+    # a combat trial is judged on its own mix
+    combat = all(it["kind"] in compose.COMBAT_KINDS for it in items)
+    target = dict(compose.COMBAT_KINDS) if combat else {
+        "two": 1 - compose.EMPTY - compose.ONE_ROBOT, "one": compose.ONE_ROBOT, "empty": compose.EMPTY}
+    kinds = {k: sum(it["kind"] == k for it in items) / n for k in target}
     for k, share in kinds.items():
         # a small run strays from the target by chance alone
         if abs(share - target[k]) > max(MIX_TOL, 3 * np.sqrt(target[k] * (1 - target[k]) / n)):
@@ -245,12 +250,17 @@ def main(run):
 
     sources = {}
     for r in (r for it in items for r in it["robots"]):
-        name = ":".join(r["source"].split(":")[1:3]) if r["source"].startswith("cutout") else r["source"]
+        parts = r["source"].split(":")
+        name = (":".join(parts[1:3]) if parts[0] == "cutout" else r["source"] if parts[0] in ("mesh", "new")
+                else ":".join(parts[:3]))
         sources[name] = sources.get(name, 0) + 1
-    contact = sum(len(it["robots"]) == 2 and compose.touches(*[r["bbox"] for r in it["robots"]])
-                  for it in items) / max(sum(it["kind"] == "two" for it in items), 1)
+    two = [it for it in items if len(it["robots"]) == 2]
+    contact = sum(compose.touches(*[r["bbox"] for r in it["robots"]]) for it in two) / max(len(two), 1)
 
     sheets(run, items, out)
+    if combat:
+        for kind in compose.COMBAT_KINDS:
+            sheets(run, [it for it in items if it["kind"] == kind], out, f"sheet_{kind}")
     verdict = "NO-GO" if hard else "MARGINAL" if soft else "GO"
     report = {"run": run.name, "verdict": verdict, "failed": hard, "warnings": soft, "images": n,
               "kinds": {k: round(v, 3) for k, v in kinds.items()},

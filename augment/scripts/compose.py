@@ -56,6 +56,10 @@ STOOD_NEAR = 90
 # slid this far, further along a row than across rows, and is resized by the
 # real robots' size at the new row.
 MOVE = (220, 90)
+# The combat trial: a real pair of robots touching, moved as one piece; one
+# robot from a set-aside combat frame (stopped, flipped, wrecked or lifted)
+# with another robot; a robot the image model drew, with another robot.
+COMBAT_KINDS = {"pair": 0.4, "pose": 0.3, "new": 0.3}
 # Measured on fight4. A frame differs from the plate on untouched floor by
 # 10.8 grey levels (std): the plate is a median and has no sensor noise, so a
 # composite needs it put back. A render is far sharper than the footage
@@ -186,10 +190,39 @@ def cutout_pool():
     return pool
 
 
+def pose_pool():
+    """Robots from set-aside combat frames, coloured by colorize.py poses."""
+    pool = []
+    for clip in CLIPS:
+        index = SPRITES / "combat" / clip / "index.json"
+        pool += [{**c, "path": index.parent / c["file"]}
+                 for c in (json.loads(index.read_text()) if index.exists() else [])]
+    return pool
+
+
+def newbot_pool():
+    """Robots the image model drew, by name."""
+    pool = {}
+    for index in sorted((SPRITES / "newbots").glob("*/index.json")):
+        for e in json.loads(index.read_text()):
+            pool.setdefault(e["robot"], []).append({**e, "path": index.parent / e["file"]})
+    return pool
+
+
+def newbot_robot(e, width, x, y, rng):
+    img = cv2.imread(str(e["path"]), cv2.IMREAD_UNCHANGED)
+    s = width(y) * rng.uniform(*SIZE_JITTER) / img.shape[1]
+    img = cv2.resize(img, None, fx=s, fy=s, interpolation=cv2.INTER_AREA if s < 1 else cv2.INTER_LINEAR)
+    # drawn sharper than the footage, as a render is
+    img = cv2.GaussianBlur(img, (0, 0), RENDER_BLUR)
+    return {"source": f"new:{e['robot']}", "bgr": img[:, :, :3].astype(np.float32),
+            "alpha": img[:, :, 3] / 255.0, "x0": int(x - img.shape[1] / 2), "y0": int(y - img.shape[0])}
+
+
 def cutout_robot(c, gain):
     img = cv2.imread(str(c["path"]), cv2.IMREAD_UNCHANGED)
     # per-fight gain differs, so a robot is brought to the plate's
-    return {"source": f"cutout:{c['robot']}:{c['paint']}:{c['clip']}:{c['frame']}", "clip": c["clip"],
+    return {"source": f"{c.get('kind', 'cutout')}:{c['robot']}:{c['paint']}:{c['clip']}:{c['frame']}", "clip": c["clip"],
             "bgr": img[:, :, :3].astype(np.float32) * gain,
             "alpha": cv2.GaussianBlur(img[:, :, 3] / 255.0, (0, 0), 1.0), "x0": c["x0"], "y0": c["y0"]}
 
@@ -210,6 +243,18 @@ def slide(robot, x, y, width):
     robot["bgr"] = cv2.resize(robot["bgr"], None, fx=s, fy=s, interpolation=cv2.INTER_LINEAR)
     robot["alpha"] = cv2.resize(robot["alpha"], None, fx=s, fy=s, interpolation=cv2.INTER_LINEAR)
     robot["x0"], robot["y0"] = int(x - robot["alpha"].shape[1] / 2), int(y - robot["alpha"].shape[0])
+
+
+def slide_group(group, x, y, width):
+    """Move robots that touch as one piece, so that the bottom middle of the
+    pair stands at (x, y), resized for the new row."""
+    hx = (min(r["x0"] for r in group) + max(r["x0"] + r["alpha"].shape[1] for r in group)) / 2
+    hy = max(r["y0"] + r["alpha"].shape[0] for r in group)
+    s = width(y) / width(hy)
+    for r in group:
+        r["x0"], r["y0"] = int(x + (r["x0"] - hx) * s), int(y + (r["y0"] - hy) * s)
+        r["bgr"] = cv2.resize(r["bgr"], None, fx=s, fy=s, interpolation=cv2.INTER_LINEAR)
+        r["alpha"] = cv2.resize(r["alpha"], None, fx=s, fy=s, interpolation=cv2.INTER_LINEAR)
 
 
 def paste(canvas, robot):
@@ -252,7 +297,7 @@ def data_yaml(folder):
         + "".join(f"  {i}: {name}\n" for i, name in NAMES.items()))
 
 
-def main(run, n, seed, start):
+def main(run, n, seed, start, combat=False):
     rng = np.random.default_rng(seed + start)
     out = AUGMENT / "out" / run
     for kind in ("colour", "grey"):
@@ -269,6 +314,16 @@ def main(run, n, seed, start):
     by_robot = {}
     for c in pool:
         by_robot.setdefault(c["robot"], []).append(c)
+    if combat:
+        poses, newbots = pose_pool(), newbot_pool()
+        pairs = {}
+        for c in poses:
+            if c["kind"] == "pair":
+                pairs.setdefault((c["clip"], c["frame"]), []).append(c)
+        pairs = [sorted(cs, key=lambda c: c["file"]) for cs in pairs.values() if len(cs) == 2]
+        singles = [c for c in poses if c["kind"] != "pair"]
+        if not pairs or not singles or not newbots:
+            raise SystemExit("no combat poses or new robots: run colorize.py poses and newbots first")
 
     def pick(other_than=None):
         """A robot first, then one of its cut-outs: fight5's two robots have
@@ -294,7 +349,10 @@ def main(run, n, seed, start):
         slide(robot, x, y, width)
         return True
 
-    kinds = rng.choice(["empty", "one", "two"], size=n, p=[EMPTY, ONE_ROBOT, 1 - EMPTY - ONE_ROBOT])
+    if combat:
+        kinds = rng.choice(list(COMBAT_KINDS), size=n, p=list(COMBAT_KINDS.values()))
+    else:
+        kinds = rng.choice(["empty", "one", "two"], size=n, p=[EMPTY, ONE_ROBOT, 1 - EMPTY - ONE_ROBOT])
     items, k = [], start
     while k < start + n:
         st = stages[rng.integers(len(stages))]
@@ -306,13 +364,35 @@ def main(run, n, seed, start):
         # left only half the images with two robots
         kind = kinds[k - start]
         robots = []
-        if kind != "empty":
-            first, first_clip = new_robot(st, h)
+        if kind == "pair":
+            a, b = pairs[rng.integers(len(pairs))]
+            robots = [cutout_robot(c, st["level"] / level[c["clip"]]) for c in (a, b)]
+            hx = (min(r["x0"] for r in robots) + max(r["x0"] + r["alpha"].shape[1] for r in robots)) / 2
+            hy = max(r["y0"] + r["alpha"].shape[0] for r in robots)
+            x, y = hx + rng.uniform(-MOVE[0], MOVE[0]), hy + rng.uniform(-MOVE[1], MOVE[1])
+            if not (0 <= x < w and 0 <= y < h and st["floor"][int(y), int(x)]):
+                continue
+            slide_group(robots, x, y, width)
+        elif kind == "new":
+            names = sorted(newbots)
+            views = newbots[names[rng.integers(len(names))]]
+            y, x = st["points"][rng.integers(len(st["points"]))]
+            first, first_clip = newbot_robot(views[rng.integers(len(views))], width, int(x), int(y), rng), None
+            # drawn whole, so kept whole: by the far wall a tall one ran off the top
+            if first["y0"] < 0 or first["x0"] < 0 or first["x0"] + first["alpha"].shape[1] > w:
+                continue
+            robots.append(first)
+        elif kind != "empty":
+            if kind == "pose":
+                c = singles[rng.integers(len(singles))]
+                first, first_clip = cutout_robot(c, st["level"] / level[c["clip"]]), c["clip"]
+            else:
+                first, first_clip = new_robot(st, h)
             if first_clip and not nudge(first, st, stand(first)[0] + rng.uniform(-MOVE[0], MOVE[0]),
                                         stand(first)[1] + rng.uniform(-MOVE[1], MOVE[1])):
                 continue
             robots.append(first)
-        if kind == "two":
+        if kind in ("two", "pose", "new"):
             # the second robot always comes from another fight, so it is another robot
             c = pick(other_than=first_clip)
             second = cutout_robot(c, st["level"] / level[c["clip"]])
@@ -370,5 +450,6 @@ if __name__ == "__main__":
     ap.add_argument("-n", type=int, default=12)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--start", type=int, default=0, help="number of the first image")
+    ap.add_argument("--combat", action="store_true", help="the combat trial's kinds instead of run1's")
     args = ap.parse_args()
-    main(args.run, args.n, args.seed, args.start)
+    main(args.run, args.n, args.seed, args.start, args.combat)
