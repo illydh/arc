@@ -23,7 +23,10 @@ LIVERY = {
     # metal on dark tyres, so one description serves.
     "chopper-or-overkill": "a bare silver metal body with scratches, black rubber tyres on "
                            "white wheel hubs",
-    "nightmare": "a black steel frame with a large bare silver metal disc and black wheels",
+    # Told only "black steel frame", the full model painted 7 of 36 maroon,
+    # teal or brown in run1.
+    "nightmare": "a matt black steel frame with a large bare silver metal disc and black wheels, "
+                 "and no red, maroon, brown, teal or any other colored parts",
     "slot-machine": "a black casino slot machine cabinet with a small lit red and gold front "
                     "panel, standing on a pink base with black wheels",
     "whiplash": "a black body with neon yellow front wedges and neon yellow wheel hubs, black "
@@ -35,6 +38,27 @@ LIVERY = {
     # Medium confidence: Malice is not excluded.
     "witch-doctor": "lime green side armour with black and white bone markings, a dark purple "
                     "top, and black tyres on lime green hubs",
+}
+
+# Roster robots with no footage, drawn by the image model for the combat
+# trial. From the public wiki's pages "<name> (ShowBot)", read and put into
+# words; no picture was downloaded or given to the model. Chopper and OverKill
+# are both here because fight2's robot is one of them and which is not known.
+NEW_ROBOTS = {
+    "diablo": "a low tracked robot with a red and black body, a stack of eight silver spinning "
+              "disks across its front between two small red wedges, a curved red arm with two "
+              "prongs rising over its back, and black rubber tracks on both sides",
+    # told "saw blades used as wheels", the model drew ordinary tyres
+    "ginsu": "a large box-shaped robot with thick pink armour and clear plastic top plates; "
+             "instead of wheels it has four large toothed silver circular saw blades, one at each "
+             "corner, and no tyres",
+    "malice": "a low, wide robot with red and black top armour on a black chassis, a wide "
+              "horizontal silver spinning drum across its front, and large black tyres on both sides",
+    "chopper": "a two-wheeled robot with a steep black front wedge, a cage of silver metal tubes "
+               "over its body, a large silver double-bladed axe on an arm over the top, and "
+               "bright red tyres",
+    "overkill": "a two-wheeled black wedge-shaped robot with a huge serrated silver knife blade "
+                "on an arm over the top, and grey tyres on white hubs",
 }
 
 # How to tell a clip's two robots apart once their outlines are split into two
@@ -74,8 +98,8 @@ def features(gray, mask, robot):
             (y1 - y0) / max(x1 - x0, 1), np.log(robot["area"]) - 2 * np.log(max(y1, 60))]
 
 
-def identify(clip):
-    """{(frame, k): robot} for the robots of a clip's accepted frames.
+def groups(clip):
+    """The two groups a clip's accepted outlines split into.
 
     The two robots of a frame are always different robots, so each frame can
     only be read one of two ways. Two groups are grown under that rule: far
@@ -88,7 +112,8 @@ def identify(clip):
         ids = cv2.imread(str(d / "masks" / f"{f['frame']:06d}.png"), cv2.IMREAD_GRAYSCALE)
         feats.append([features(gray, ids == k + 1, r) for k, r in enumerate(f["robots"])])
     x = np.array(feats)
-    x = (x - x.mean((0, 1))) / (x.std((0, 1)) + 1e-9)
+    mean, std = x.mean((0, 1)), x.std((0, 1)) + 1e-9
+    x = (x - mean) / std
 
     # a robot by the far wall is a few hundred blurred pixels and its features
     # mean little, so it counts for less and its partner decides the frame
@@ -109,11 +134,30 @@ def identify(clip):
         has_more = new
     if ca[col] < cb[col]:
         raise SystemExit(f"{clip}: the groups no longer differ in '{key}' the way CLIPS says")
-    flip = np.array([f["frame"] in SWAPPED.get(clip, ()) for f in frames])
-    has_more = np.where(flip, 1 - has_more, has_more)
+    return {"frames": frames, "has_more": has_more, "mean": mean, "std": std,
+            "centres": {more: ca, less: cb}}
+
+
+def identify(clip):
+    """{(frame, k): robot} for the robots of a clip's accepted frames."""
+    g = groups(clip)
+    more, less = g["centres"]
+    flip = np.array([f["frame"] in SWAPPED.get(clip, ()) for f in g["frames"]])
+    has_more = np.where(flip, 1 - g["has_more"], g["has_more"])
     return {(f["frame"], k): (more if k == has_more[i] else less)
-            for i, f in enumerate(frames) for k in range(2)
+            for i, f in enumerate(g["frames"]) for k in range(2)
             if f["frame"] not in UNNAMED.get(clip, ())}
+
+
+def name(g, feats):
+    """Names for the outlines of one frame of other footage, from a clip's
+    groups: the nearer group, and for two outlines the two different robots."""
+    z = [(np.array(f) - g["mean"]) / g["std"] for f in feats]
+    (a, ca), (b, cb) = g["centres"].items()
+    far = lambda v, c: float(((v - c) ** 2).sum())
+    if len(z) == 1:
+        return [a if far(z[0], ca) <= far(z[0], cb) else b]
+    return [a, b] if far(z[0], ca) + far(z[1], cb) <= far(z[0], cb) + far(z[1], ca) else [b, a]
 
 
 def cutouts(clip):
